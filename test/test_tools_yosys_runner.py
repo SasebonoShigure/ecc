@@ -14,6 +14,7 @@ def _build_workspace_and_step(tmp_path: Path):
     rtl_file.write_text("module top; endmodule\n")
 
     output_file = tmp_path / "output.v"
+    golden_file = tmp_path / "output_golden.v"
     log_file = tmp_path / "yosys.log"
 
     workspace = SimpleNamespace(
@@ -23,16 +24,16 @@ def _build_workspace_and_step(tmp_path: Path):
     )
     step = SimpleNamespace(
         input={"verilog": str(rtl_file)},
-        output={"verilog": str(output_file)},
+        output={"verilog": str(output_file), "golden_verilog": str(golden_file)},
         log={"file": str(log_file)},
         script={"dir": str(script_dir)},
         directory=str(tmp_path)
     )
-    return workspace, step, output_file, log_file
+    return workspace, step, output_file, golden_file, log_file
 
 
 def test_run_step_uses_local_env_and_runs_synthesis(tmp_path, monkeypatch):
-    workspace, step, output_file, _ = _build_workspace_and_step(tmp_path)
+    workspace, step, output_file, golden_file, _ = _build_workspace_and_step(tmp_path)
     runtime_env = {"PATH": "/opt/yosys/bin", "CUSTOM_ENV": "1"}
     updates = []
     run_calls = []
@@ -68,6 +69,7 @@ def test_run_step_uses_local_env_and_runs_synthesis(tmp_path, monkeypatch):
         })
         if cmd == ["yosys", "yosys_synthesis.tcl"]:
             output_file.write_text("module top(); endmodule\n")
+            golden_file.write_text("module top(); endmodule\n")
             return SimpleNamespace(returncode=0)
         raise AssertionError(f"Unexpected command: {cmd}")
 
@@ -93,7 +95,7 @@ def test_run_step_uses_local_env_and_runs_synthesis(tmp_path, monkeypatch):
 
 
 def test_run_step_marks_invalid_when_slang_check_fails(tmp_path, monkeypatch):
-    workspace, step, _, log_file = _build_workspace_and_step(tmp_path)
+    workspace, step, _, _, log_file = _build_workspace_and_step(tmp_path)
     updates = []
     run_calls = []
 
@@ -127,7 +129,7 @@ def test_run_step_marks_invalid_when_slang_check_fails(tmp_path, monkeypatch):
 
 
 def test_run_step_marks_invalid_when_yosys_is_missing(tmp_path, monkeypatch):
-    workspace, step, _, log_file = _build_workspace_and_step(tmp_path)
+    workspace, step, _, _, log_file = _build_workspace_and_step(tmp_path)
     updates = []
 
     class FakeSubFlow:

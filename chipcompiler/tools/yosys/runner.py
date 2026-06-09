@@ -121,7 +121,11 @@ def run_step(workspace: Workspace,
                 stderr=subprocess.STDOUT,
             )
 
-        if os.path.exists(step.output["verilog"]):
+        output_exists = os.path.exists(step.output["verilog"])
+        golden_path = step.output.get("golden_verilog", "")
+        golden_exists = not golden_path or os.path.exists(golden_path)
+
+        if output_exists and golden_exists:
             sub_flow.update_step(step_name="run yosys", state=StateEnum.Success)
 
             fixed_netlist = step.output.get("fixed_verilog", "")
@@ -140,7 +144,8 @@ def run_step(workspace: Workspace,
             sub_flow.update_step(step_name="run yosys", state=StateEnum.Invalid)
             
             print(
-                f"Error: Output netlist not generated at {step.output['verilog']}. "
+                f"Error: Output netlist not generated at {step.output['verilog']} "
+                f"or golden netlist not generated at {golden_path}. "
                 f"yosys exit code: {result.returncode}"
             )
             return False

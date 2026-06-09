@@ -135,6 +135,10 @@ yosys select -write ${timing_cell_stat_rpt} t:*DFF*
 yosys tee -q -o ${timing_cell_count_rpt} select -count t:*DFF*
 yosys tee -q -a ${timing_cell_count_rpt} select -count */t:*_DLATCH*_ */t:*_SR*_
 
+if {[info exists golden_netlist_file] && $golden_netlist_file ne ""} {
+    yosys write_verilog -noattr -noexpr -nohex -nodec ${golden_netlist_file}
+}
+
 # yosys tee -q -o "${generic_stat_json}" stat -json -tech cmos
 # yosys tee -q -o "${generic_stat_json}.rpt" stat -tech cmos
 # -----------------------------------------------------------------------------

@@ -51,7 +51,8 @@ class EngineFlow:
     def init_flow_step(self,
                   step : StepEnum | str,
                   tool : str,
-                  state : str | StateEnum):
+                  state : str | StateEnum,
+                  info: dict | None = None):
         step_value = step.value if isinstance(step, StepEnum) else step
         state_value = state.value if isinstance(state, StateEnum) else state
         return {
@@ -60,15 +61,16 @@ class EngineFlow:
             "state" : state_value, # step state
             "runtime" : "", # step run time
             "peak memory (mb)" : 0, # step peak memory
-            "info" : {} # step additional infomation
+            "info" : info or {} # step additional infomation
         }
         
     def add_step(self,
                  step : StepEnum | str,
                  tool : str,
-                 state : str | StateEnum):
+                 state : str | StateEnum,
+                 info: dict | None = None):
         steps = self.workspace.flow.data.get("steps", [])
-        steps.append(self.init_flow_step(step, tool, state))
+        steps.append(self.init_flow_step(step, tool, state, info=info))
         
         self.workspace.flow.data = {"steps" : steps}
         
@@ -172,6 +174,11 @@ class EngineFlow:
         """
         import os
         success = False
+        if (
+            workspace_step.tool == "yosys_lec"
+            or workspace_step.name in (StepEnum.LEC.value, StepEnum.POST_ROUTE_LEC.value)
+        ):
+            return os.path.exists(workspace_step.output.get("json", ""))
         match workspace_step.name:
             case StepEnum.SYNTHESIS.value:
                 if os.path.exists(workspace_step.output.get("verilog", "")):
@@ -197,6 +204,8 @@ class EngineFlow:
         create all step workspaces
         """
         pre_step = None
+        synthesis_gate_verilog = ""
+        synthesis_golden_verilog = ""
         for step in self.workspace.flow.data.get("steps", []):
             if pre_step is None:
                 # use the origin def and verilog in workspace for the first step.
@@ -208,6 +217,16 @@ class EngineFlow:
                 input_def = pre_step.output.get("def", "")
                 input_verilog = pre_step.output.get("verilog", "")
                 input_db = pre_step.output.get("db", "")
+
+            if step["tool"] == "yosys_lec":
+                step_info = step.get("info", {}) or {}
+                explicit_golden = step_info.get("golden_verilog", "")
+                if explicit_golden:
+                    input_db = explicit_golden
+                elif step["name"] == StepEnum.POST_ROUTE_LEC.value:
+                    input_db = synthesis_gate_verilog
+                elif pre_step is not None and pre_step.name == StepEnum.SYNTHESIS.value:
+                    input_db = synthesis_golden_verilog
 
             from chipcompiler.tools import create_step, run_step
             # create workspace step
@@ -225,6 +244,9 @@ class EngineFlow:
                     eda_step.output["spef"] = pre_step.output.get("spef", [])
                 self.workspace_steps.append(eda_step)
                 pre_step = eda_step
+                if eda_step.name == StepEnum.SYNTHESIS.value:
+                    synthesis_gate_verilog = eda_step.output.get("verilog", "")
+                    synthesis_golden_verilog = eda_step.output.get("golden_verilog", "")
             else:
                 # error create step, TBD
                 pass

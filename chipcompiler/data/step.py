@@ -25,6 +25,8 @@ class StepEnum(Enum):
     FILLER = "filler"
     GDS = "GDS"    
     SIGNOFF = "Signoff"
+    LEC = "lec"
+    POST_ROUTE_LEC = "postRouteLec"
     STA = "sta"
     DRC = "drc"
     RCX = "RCX"

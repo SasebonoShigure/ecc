@@ -113,6 +113,7 @@ set clk_freq_mhz            {clk_freq_mhz}
 
 # Output files
 set final_netlist_file      {_tcl_quote(netlist_file)}
+set golden_netlist_file     {_tcl_quote(_abspath(step.output.get("golden_verilog", "")))}
 set timing_cell_stat_rpt    {_tcl_quote(timing_cell_stat_rpt)}
 set timing_cell_count_rpt   {_tcl_quote(timing_cell_count_rpt)}
 set generic_stat_json       {_tcl_quote(generic_stat_json)}
@@ -180,12 +181,14 @@ def build_step(workspace: Workspace,
 
     if output_verilog is None:
         output_verilog = f"{step.directory}/output/{workspace.design.name}_{step.name}.v"
+    golden_verilog = f"{step.directory}/output/{workspace.design.name}_{step_name}_golden.v"
     if output_def is None:
         output_def = f"{step.directory}/output/{workspace.design.name}_{step.name}.def.gz"
     step.output = {
         "dir": f"{step.directory}/output",
         "def": output_def,
         "verilog": output_verilog,
+        "golden_verilog": golden_verilog,
         "fixed_verilog": f"{step.directory}/output/{workspace.design.name}_{step.name}_fixed.v",
         "json": f"{step.directory}/output/{workspace.design.name}_{step.name}.json",
         "report": f"{step.directory}/output/{workspace.design.name}_{step.name}.rpt",
