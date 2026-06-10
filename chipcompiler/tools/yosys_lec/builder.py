@@ -16,8 +16,9 @@ def _derive_golden_path(gate_verilog: str) -> str:
 
 def _tcl_quote(value: str) -> str:
     value = str(value)
-    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-    return f'"{escaped}"'
+    # Use braces to prevent Tcl variable/command substitution.
+    escaped = value.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+    return "{" + escaped + "}"
 
 
 def _tcl_list(values: list[str]) -> str:
