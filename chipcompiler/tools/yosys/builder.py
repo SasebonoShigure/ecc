@@ -113,7 +113,7 @@ set clk_freq_mhz            {clk_freq_mhz}
 
 # Output files
 set final_netlist_file      {_tcl_quote(netlist_file)}
-set golden_netlist_file     {_tcl_quote(_abspath(step.output.get("golden_verilog", "")))}
+set golden_netlist_file     {_tcl_quote(_abspath(step.output.get("golden_verilog", ""))) if step.output.get("golden_verilog") else '""'}
 set timing_cell_stat_rpt    {_tcl_quote(timing_cell_stat_rpt)}
 set timing_cell_count_rpt   {_tcl_quote(timing_cell_count_rpt)}
 set generic_stat_json       {_tcl_quote(generic_stat_json)}
