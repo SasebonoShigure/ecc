@@ -7,4 +7,4 @@
 	url = https://github.com/openecos-projects/ecc-dreamplace.git
 [submodule "test/icsprout55-pdk"]
 	path = test/icsprout55-pdk
-	url = git@github.com:openecos-projects/icsprout55-pdk.git
+	url = https://github.com/openecos-projects/icsprout55-pdk.git
