@@ -1,13 +1,9 @@
-from __future__ import annotations
-
 from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
 from jsonrpcserver import Success, dispatch
 from oslash.either import Left, Right
-
-from chipcompiler.runtime.events import redirect_stdout_to_stderr
 
 JsonRpcHandler = Callable[..., Any]
 
@@ -33,8 +29,7 @@ class RpcDispatcher:
     def _wrap_handler(self, handler: JsonRpcHandler) -> JsonRpcHandler:
         @wraps(handler)
         def wrapped(*args: Any, **kwargs: Any):
-            with redirect_stdout_to_stderr():
-                result = handler(*args, **kwargs)
+            result = handler(*args, **kwargs)
             if isinstance(result, Left | Right):
                 return result
             return Success(result)
