@@ -451,8 +451,11 @@ class EngineFlow:
         self.set_state(name=workspace_step.name, tool=workspace_step.tool, state=StateEnum.Ongoing)
         _notify_flow_observer(observer, "on_step_started", workspace_step)
 
-        step_tag = f"{workspace_step.name}({workspace_step.tool})"
         self.workspace.logger.info(f"[STEP] {step_tag} pid={os.getpid()} started")
+
+        from chipcompiler.runtime.log_stream import emit_step_marker
+
+        emit_step_marker("begin", step=workspace_step.name, tool=workspace_step.tool)
 
         pid = os.getpid()
         start_memory_mb = get_process_rss_mb(pid)
@@ -485,6 +488,7 @@ class EngineFlow:
                     delattr(self.workspace, "_runtime_flow_observer")
                 else:
                     self.workspace._runtime_flow_observer = previous_observer
+            emit_step_marker("end", step=workspace_step.name, tool=workspace_step.tool)
 
         # compute metrics
         peak_memory_mb = peak_memory[0] - start_memory_mb
