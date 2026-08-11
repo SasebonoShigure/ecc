@@ -14,7 +14,6 @@ from chipcompiler.engine.signoff import (
     SignoffPackageOptions,
     SignoffPackageResult,
 )
-from chipcompiler.utility.log import redirect_stdio_to_file
 
 logger = logging.getLogger(__name__)
 
@@ -451,16 +450,6 @@ class EngineFlow:
         timing_constraints = self.timing_constraint_facts()
         self.set_state(name=workspace_step.name, tool=workspace_step.tool, state=StateEnum.Ongoing)
         _notify_flow_observer(observer, "on_step_started", workspace_step)
-
-        # run step
-        log_file = workspace_step.log.file or ""
-        if log_file:
-            log_file = os.path.abspath(log_file)
-            try:
-                os.makedirs(os.path.dirname(log_file) or ".", exist_ok=True)
-                redirect_stdio_to_file(log_file)
-            except Exception:
-                traceback.print_exc()
 
         step_tag = f"{workspace_step.name}({workspace_step.tool})"
         self.workspace.logger.info(f"[STEP] {step_tag} pid={os.getpid()} started")

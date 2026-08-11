@@ -109,7 +109,7 @@ def get_yosys_runtime() -> tuple[list[str], dict[str, str]]:
 
 
 def check_slang_plugin(
-    yosys_cmd: list[str], cwd_dir: str, yosys_env: dict[str, str], log_file, timeout: int = 60
+    yosys_cmd: list[str], cwd_dir: str, yosys_env: dict[str, str], timeout: int = 60
 ) -> bool:
     """
     Run a lightweight slang plugin availability check.
@@ -119,7 +119,6 @@ def check_slang_plugin(
         slang_check_cmd,
         cwd=cwd_dir,
         env=yosys_env,
-        stdout=log_file,
         stderr=subprocess.STDOUT,
         timeout=timeout,
     )
@@ -130,7 +129,6 @@ def check_slang_plugin(
         "Error: yosys slang plugin check failed. "
         "Please use a yosys build with slang plugin support."
     )
-    log_file.write(error_msg + "\n")
     print(error_msg)
     return False
 

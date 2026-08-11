@@ -66,11 +66,10 @@ def test_get_yosys_runtime_builds_local_env_without_mutating_global_env(tmp_path
     assert before == after
 
 
-def test_check_slang_plugin_executes_expected_command(tmp_path, monkeypatch):
-    log_path = tmp_path / "check.log"
+def test_check_slang_plugin_executes_expected_command(monkeypatch):
     calls = []
 
-    def fake_run(cmd, cwd, env, stdout, stderr, timeout):
+    def fake_run(cmd, cwd, env, stderr, timeout):
         calls.append(
             {
                 "cmd": list(cmd),
@@ -82,13 +81,11 @@ def test_check_slang_plugin_executes_expected_command(tmp_path, monkeypatch):
         return SimpleNamespace(returncode=0)
 
     monkeypatch.setattr(utility.subprocess, "run", fake_run)
-    with open(log_path, "w") as log_file:
-        ok = utility.check_slang_plugin(
-            yosys_cmd=["yosys"],
-            cwd_dir="/tmp/test",
-            yosys_env={"PATH": "/tmp/bin"},
-            log_file=log_file,
-        )
+    ok = utility.check_slang_plugin(
+        yosys_cmd=["yosys"],
+        cwd_dir="/tmp/test",
+        yosys_env={"PATH": "/tmp/bin"},
+    )
 
     assert ok is True
     assert len(calls) == 1
@@ -98,20 +95,15 @@ def test_check_slang_plugin_executes_expected_command(tmp_path, monkeypatch):
     assert calls[0]["timeout"] == 60
 
 
-def test_check_slang_plugin_writes_error_on_failure(tmp_path, monkeypatch):
-    log_path = tmp_path / "check_fail.log"
-
-    def fake_run(cmd, cwd, env, stdout, stderr, timeout):
+def test_check_slang_plugin_writes_error_on_failure(monkeypatch):
+    def fake_run(cmd, cwd, env, stderr, timeout):
         return SimpleNamespace(returncode=1)
 
     monkeypatch.setattr(utility.subprocess, "run", fake_run)
-    with open(log_path, "w") as log_file:
-        ok = utility.check_slang_plugin(
-            yosys_cmd=["yosys"],
-            cwd_dir="/tmp/test",
-            yosys_env={"PATH": "/tmp/bin"},
-            log_file=log_file,
-        )
+    ok = utility.check_slang_plugin(
+        yosys_cmd=["yosys"],
+        cwd_dir="/tmp/test",
+        yosys_env={"PATH": "/tmp/bin"},
+    )
 
     assert ok is False
-    assert "slang plugin check failed" in log_path.read_text()
