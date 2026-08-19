@@ -476,7 +476,24 @@ target_density = 0.65
 
 [params.sta]
 max_paths = 1000
+backend = "cpu"             # cpu | cuda
+update_strategy = "full"    # full | incremental
+fallback_policy = "error"   # error | full_with_record
 ```
+
+The STA execution-mode defaults are `cpu`, `full`, and `error`. In the first
+session-interface stage, `cpu/full` runs the existing full-graph STA and
+`cpu/incremental` without a mutation batch establishes the same full baseline
+while recording `baseline_only`. Both CUDA combinations are valid
+configuration values, but are reported as unsupported before stale STA
+artifacts are removed or a native engine is created. `full_with_record` does
+not silently substitute CPU for an unavailable CUDA backend.
+
+These mode defaults are resolved by the parameter schema and are not written
+into PDK parameter templates. Consequently, an existing project that omits
+the three keys retains its previous serialized workspace and artifact layout.
+The execution record exposes requested and executed modes separately; it does
+not imply that incremental propagation or GPU acceleration is available.
 
 Current validation supports the `ics55` PDK. `flow.run` selects the run
 directory and accepts the same forms as `--run-id`: a bare name, a

@@ -65,14 +65,15 @@
 
 ## 4. requested / executed / fallback 可观测性契约
 
-阶段 1 起，每次运行和每个 mutation batch 都必须输出并可由测试断言：
+阶段 1 起，每次 production 运行都必须输出并可由测试断言以下 execution record；从实际引入 mutation batch 的阶段起，每个 batch 也必须输出同形记录：
 
 - `requested_backend`、`requested_update_strategy`、`fallback_policy`；
 - `executed_backend`、`executed_update_strategy`、`execution_kind`；
 - `incremental_batch_executed`；
 - `fallback_to_full` 与非空、稳定分类的 `fallback_reason`（发生 fallback 时）；
-- `propagation_scope`，核心四模式固定为 `full_graph`；
-- graph/session generation 与 fingerprint，以及 capacity grow/rebuild/invalidation 事件。
+- `propagation_scope`，核心四模式固定为 `full_graph`。
+
+graph/session generation、fingerprint 以及 capacity grow/rebuild/invalidation 事件的首个实现与强制可观测门是阶段 2。阶段 1 只交付 execution record，不得填充占位 generation 或伪 fingerprint。
 
 处理规则：
 

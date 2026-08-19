@@ -2,22 +2,66 @@
 
 import json
 import shutil
+from enum import Enum
 from pathlib import Path
 
 import pytest
 
 from chipcompiler.tools.ecc.module import ECCToolsModule
+from chipcompiler.tools.ecc.sta_mode import (
+    StaBackend,
+    StaExecutionKind,
+    StaExecutionRequest,
+    StaFallbackPolicy,
+    StaUnsupportedError,
+    StaUpdateStrategy,
+    preflight_stage1_request,
+)
+
+
+class FakeNativeStaSession:
+    def __init__(self, owner, request):
+        self.owner = owner
+        self.request = StaExecutionRequest(
+            backend=StaBackend(request["backend"]),
+            update_strategy=StaUpdateStrategy(request["update_strategy"]),
+            fallback_policy=StaFallbackPolicy(request["fallback_policy"]),
+        )
+        self.state = "created"
+
+    def initialize(self, *, config, config_dict):
+        self.owner.init_sta(config=config, config_dict=dict(config_dict))
+        self.state = "initialized"
+
+    def run_full_baseline(self):
+        self.owner.run_sta()
+        self.state = "baseline_executed"
+        record = preflight_stage1_request(self.request)
+        return {
+            name: value.value if isinstance(value, Enum) else value
+            for name, value in vars(record).items()
+        }
+
+    def close(self):
+        self.owner.destroy_sta()
+        self.state = "closed"
 
 
 class FakeStaEcc:
     def __init__(self):
         self.calls = []
+        self.session_requests = []
         self.structured_timing_filenames = (
             "qor_summary.json",
             "timing_paths.json",
         )
         self.emit_sdf = True
         self.emit_power_report = True
+
+    def create_incremental_sta_session(self, request):
+        request = dict(request)
+        self.session_requests.append(request)
+        return FakeNativeStaSession(self, request)
 
     def lib_init(self, **kwargs):
         self.calls.append(("lib_init", kwargs))
@@ -324,3 +368,63 @@ def test_run_timing_stringifies_path_arguments(tmp_path):
         ("run_sta", (), {}),
         ("destroy_sta", (), {}),
     ]
+
+
+def test_run_timing_cpu_incremental_without_mutation_is_baseline_only(tmp_path):
+    module = make_module()
+    request = StaExecutionRequest(
+        backend=StaBackend.CPU,
+        update_strategy=StaUpdateStrategy.INCREMENTAL,
+        fallback_policy=StaFallbackPolicy.FULL_WITH_RECORD,
+    )
+
+    record = module.run_timing(
+        work_dir=tmp_path / "data" / "sta",
+        feature_dir=tmp_path / "feature",
+        output_modes=("structured",),
+        execution_request=request,
+    )
+
+    assert record.execution_kind is StaExecutionKind.BASELINE_ONLY
+    assert record.executed_backend is StaBackend.CPU
+    assert record.executed_update_strategy is StaUpdateStrategy.FULL
+    assert record.incremental_batch_executed is False
+    assert record.fallback_to_full is False
+    assert module.ecc.session_requests == [
+        {
+            "backend": "cpu",
+            "update_strategy": "incremental",
+            "fallback_policy": "full_with_record",
+        }
+    ]
+
+
+def test_run_timing_cuda_preflight_preserves_stale_artifacts(tmp_path):
+    module = make_module()
+    work_dir = tmp_path / "data" / "sta"
+    report_dir = tmp_path / "report"
+    feature_dir = tmp_path / "feature"
+    report_dir.mkdir()
+    feature_dir.mkdir()
+    report_file = report_dir / "qor_summary.rpt"
+    feature_file = feature_dir / "qor_summary.json"
+    report_file.write_bytes(b"stale-report\n")
+    feature_file.write_bytes(b"stale-feature\n")
+    request = StaExecutionRequest(
+        backend=StaBackend.CUDA,
+        update_strategy=StaUpdateStrategy.FULL,
+        fallback_policy=StaFallbackPolicy.FULL_WITH_RECORD,
+    )
+
+    with pytest.raises(StaUnsupportedError):
+        module.run_timing(
+            work_dir=work_dir,
+            report_dir=report_dir,
+            feature_dir=feature_dir,
+            execution_request=request,
+        )
+
+    assert report_file.read_bytes() == b"stale-report\n"
+    assert feature_file.read_bytes() == b"stale-feature\n"
+    assert module.ecc.calls == []
+    assert module.ecc.session_requests == []

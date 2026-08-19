@@ -2,6 +2,7 @@ import json
 import os
 
 from chipcompiler.cli import main as cli_main
+from chipcompiler.cli.project.params import list_schemas
 
 
 class TestParamList:
@@ -27,7 +28,7 @@ class TestParamList:
         assert rc == 0
         lines = capsys.readouterr().out.strip().split("\n")
         objects = [json.loads(ln) for ln in lines]
-        assert len(objects) == 13
+        assert len(objects) == len(list_schemas())
 
     def test_param_list_plain(self, tmp_path, capsys, create_cli_project):
         project_dir = create_cli_project()
@@ -334,7 +335,7 @@ class TestOutputContracts:
         assert rc == 0
         out = capsys.readouterr().out
         lines = [line for line in out.strip().split("\n") if line.strip()]
-        assert len(lines) == 13
+        assert len(lines) == len(list_schemas())
 
 
 class TestConfigResolved:
@@ -357,7 +358,7 @@ class TestConfigResolved:
         data = json.loads(capsys.readouterr().out)
         records = data["records"]
         param_records = [r for r in records if r.get("kind") == "param"]
-        assert len(param_records) == 13
+        assert len(param_records) == len(list_schemas())
         first_param = param_records[0]
         assert "source" in first_param
         assert "maps_to" in first_param
@@ -424,7 +425,7 @@ class TestPrettyOutput:
         assert rc == 0
         out = capsys.readouterr().out
         lines = [line for line in out.strip().split("\n") if line.strip()]
-        assert len(lines) == 13
+        assert len(lines) == len(list_schemas())
         assert "\033[" not in out
 
     def test_param_show_default_is_pretty(self, tmp_path, capsys, create_cli_project):

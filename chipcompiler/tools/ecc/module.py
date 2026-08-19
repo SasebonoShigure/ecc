@@ -6,6 +6,12 @@ from pathlib import Path
 from typing import TypeAlias
 
 from chipcompiler.tools.ecc.sta_artifacts import discard_sta_run_outputs, publish_sta_artifacts
+from chipcompiler.tools.ecc.sta_mode import (
+    StaExecutionRequest,
+    preflight_stage1_request,
+    request_from_mapping,
+)
+from chipcompiler.tools.ecc.sta_session import IncrementalStaSession
 from chipcompiler.utility.path import path_text, path_texts
 
 # Path arguments to the native-wrapper methods are normalized via path_text(),
@@ -665,7 +671,11 @@ class ECCToolsModule:
         max_paths_per_analysis: int = 20,
         max_paths: int = 1000,
         corner: str = "",
+        execution_request: StaExecutionRequest | None = None,
     ):
+        if execution_request is None:
+            execution_request = request_from_mapping({})
+        preflight_stage1_request(execution_request)
         if lib_paths is None:
             lib_paths = []
         modes = _normalize_sta_output_modes(output_modes)
@@ -702,11 +712,13 @@ class ECCToolsModule:
         )
         if corner:
             config_dict["-timing_corner"] = corner
-        self.ecc.init_sta(config=path_text(config), config_dict=config_dict)
-        try:
-            self.ecc.run_sta()
-        finally:
-            self.ecc.destroy_sta()
+        with IncrementalStaSession(
+            self.ecc,
+            execution_request,
+            config=path_text(config),
+            config_dict=config_dict,
+        ) as sta_session:
+            execution_record = sta_session.run_full_baseline()
 
         publish_sta_artifacts(
             work_dir=work_dir or "",
@@ -714,6 +726,7 @@ class ECCToolsModule:
             feature_dir=feature_dir or "",
             modes=modes,
         )
+        return execution_record
 
     def write_abstract_lef(self, output_lef_path: PathArg):
         return self.ecc.write_abstract_lef(path_text(output_lef_path))

@@ -20,6 +20,12 @@ from chipcompiler.tools.ecc.metrics import (
 from chipcompiler.tools.ecc.module import ECCToolsModule
 from chipcompiler.tools.ecc.plot import ECCToolsPlot
 from chipcompiler.tools.ecc.sta_artifacts import discard_sta_outputs
+from chipcompiler.tools.ecc.sta_mode import (
+    StaExecutionRecord,
+    StaExecutionRequest,
+    preflight_stage1_request,
+    request_from_mapping,
+)
 from chipcompiler.tools.ecc.sta_qor import (
     POST_SYNTHESIS_STA_CORNER,
     sta_artifact_directory,
@@ -60,6 +66,24 @@ def _workspace_sta_config_path(workspace: Workspace) -> str | None:
         return None
     config_path = workspace_config_path(workspace.directory, StepEnum.STA.value)
     return os.fspath(config_path) if config_path is not None else None
+
+
+def _workspace_sta_execution_request(workspace: Workspace) -> StaExecutionRequest:
+    return request_from_mapping(workspace.parameters.data)
+
+
+def _log_sta_execution_record(workspace: Workspace, record: StaExecutionRecord) -> None:
+    fallback_reason = record.fallback_reason.value if record.fallback_reason is not None else None
+    workspace.logger.info(
+        "STA execution requested=%s/%s executed=%s/%s kind=%s fallback=%s reason=%s",
+        record.requested_backend.value,
+        record.requested_update_strategy.value,
+        record.executed_backend.value,
+        record.executed_update_strategy.value,
+        record.execution_kind.value,
+        record.fallback_to_full,
+        fallback_reason,
+    )
 
 
 def copy_rcx_spef_outputs(workspace: Workspace, step: EccStep):
@@ -309,6 +333,16 @@ def run_sta_without_spef(
     STA is supplemental to synthesis, so callers can retain a successful
     synthesis result when this function returns ``False``.
     """
+    try:
+        execution_request = _workspace_sta_execution_request(workspace)
+        preflight_stage1_request(execution_request)
+    except Exception as exc:
+        workspace.logger.warning(
+            "Post-synthesis STA failed; synthesis result is kept: %s",
+            exc,
+        )
+        return False
+
     # A rerun keeps the step directory, so drop the previously published STA
     # artifacts first; a failed STA rerun must not leave stale reports or
     # power summaries visible as current outputs.
@@ -370,7 +404,7 @@ def run_sta_without_spef(
         if sta_config is None:
             raise ValueError("workspace STA config path is not configured")
 
-        ecc_module.run_timing(
+        execution_record = ecc_module.run_timing(
             config=sta_config,
             work_dir=work_dir,
             report_dir=report_dir,
@@ -379,7 +413,9 @@ def run_sta_without_spef(
             sdc_path=sdc_path,
             max_paths=workspace.parameters.data.get("STA max paths", 1000),
             corner=corner,
+            execution_request=execution_request,
         )
+        _log_sta_execution_record(workspace, execution_record)
     except Exception as exc:
         workspace.logger.warning("Post-synthesis STA failed; synthesis result is kept: %s", exc)
         return False
@@ -945,6 +981,9 @@ def run_sta(workspace: Workspace, step: EccStep, ecc_module: ECCToolsModule | No
     """
     run sta
     """
+    execution_request = _workspace_sta_execution_request(workspace)
+    preflight_stage1_request(execution_request)
+
     result = False
 
     sub_flow = EccSubFlow(workspace=workspace, workspace_step=step)
@@ -1026,7 +1065,7 @@ def run_sta(workspace: Workspace, step: EccStep, ecc_module: ECCToolsModule | No
 
         corner = f"{report_dir.parent.name}/{report_dir.name}"
 
-        ecc_module.run_timing(
+        execution_record = ecc_module.run_timing(
             config=sta_config,
             work_dir=(step.data.steps or {}).get(StepEnum.STA.value, ""),
             report_dir=report_dir,
@@ -1037,7 +1076,9 @@ def run_sta(workspace: Workspace, step: EccStep, ecc_module: ECCToolsModule | No
             output_modes=("report", "structured"),
             max_paths=workspace.parameters.data.get("STA max paths", 1000),
             corner=corner,
+            execution_request=execution_request,
         )
+        _log_sta_execution_record(workspace, execution_record)
 
         workspace.logger.info(
             "STA artifacts for %s/%s at %sC saved to report=%s feature=%s",

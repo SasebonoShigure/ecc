@@ -18,6 +18,7 @@ from chipcompiler.engine.flow import EngineFlow
 from chipcompiler.tools.ecc import runner as ecc_runner
 from chipcompiler.tools.ecc.builder import build_step, build_step_space
 from chipcompiler.tools.ecc.checklist import EccRcxChecklist
+from chipcompiler.tools.ecc.sta_mode import preflight_stage1_request, request_from_mapping
 
 
 class FakeEccModule:
@@ -70,6 +71,7 @@ class FakeSynthesisStaModule:
 
     def run_timing(self, **kwargs):
         self.calls.append(("run_timing", kwargs))
+        return preflight_stage1_request(kwargs["execution_request"])
 
 
 class FakeLogger:
@@ -345,6 +347,7 @@ def test_run_sta_without_spef_reads_netlist_and_writes_to_step_report_and_featur
                 "sdc_path": sdc,
                 "max_paths": 1000,
                 "corner": "post_synthesis",
+                "execution_request": request_from_mapping({}),
             },
         ),
     ]
@@ -495,7 +498,12 @@ def test_run_sta_uses_matched_report_and_feature_corner_directories(tmp_path, mo
         directory=tmp_path,
         design=OriginDesign(name="gcd", top_module="gcd"),
         pdk=PDK(libs=[max_lib, min_lib], sdc=sdc),
-        parameters=Parameters(data={"STA max paths": 500}),
+        parameters=Parameters(
+            data={
+                "STA max paths": 500,
+                "STA update strategy": "incremental",
+            }
+        ),
         config={StepEnum.STA.value: incorrect_sta_config, StepEnum.RCX.value: rcx_config},
         logger=logger,
     )
@@ -528,6 +536,7 @@ def test_run_sta_uses_matched_report_and_feature_corner_directories(tmp_path, mo
             "output_modes": ("report", "structured"),
             "max_paths": 500,
             "corner": "MAX_125/RCworst",
+            "execution_request": request_from_mapping(workspace.parameters.data),
         },
         {
             "config": str(sta_config),
@@ -540,7 +549,24 @@ def test_run_sta_uses_matched_report_and_feature_corner_directories(tmp_path, mo
             "output_modes": ("report", "structured"),
             "max_paths": 500,
             "corner": "MIN_m40/Cbest",
+            "execution_request": request_from_mapping(workspace.parameters.data),
         },
+    ]
+
+    telemetry_message = "STA execution requested=%s/%s executed=%s/%s kind=%s fallback=%s reason=%s"
+    telemetry = [entry for entry in logger.infos if entry[0] == telemetry_message]
+    expected_telemetry = (
+        "cpu",
+        "incremental",
+        "cpu",
+        "full",
+        "baseline_only",
+        False,
+        "not_applicable_no_mutation",
+    )
+    assert telemetry == [
+        (telemetry_message, expected_telemetry),
+        (telemetry_message, expected_telemetry),
     ]
 
 

@@ -29,6 +29,10 @@ REQUIRED_KEYS = [
     "place.routability_opt",
     "route.bottom_layer",
     "route.top_layer",
+    "sta.max_paths",
+    "sta.backend",
+    "sta.update_strategy",
+    "sta.fallback_policy",
 ]
 
 
@@ -78,6 +82,9 @@ class TestSchemaRegistry:
         assert not is_known_key("Target density")
         assert not is_known_key("Max fanout")
         assert not is_known_key("Frequency max [MHz]")
+        assert not is_known_key("STA backend")
+        assert not is_known_key("STA update strategy")
+        assert not is_known_key("STA fallback policy")
 
     def test_schema_record_missing_required_fields_rejected(self):
         bad = ParamSchema(
@@ -388,3 +395,81 @@ class TestTomlParams:
         table = {"place": "not_a_table"}
         flat, errors = parse_toml_params(table)
         assert len(errors) > 0
+
+
+class TestStaModeParameters:
+    def test_defaults_resolve_without_backend_overrides(self):
+        resolved, errors = resolve_parameters()
+        sta_modes = tuple(
+            (parameter.param, parameter.value, parameter.source)
+            for parameter in resolved
+            if parameter.param
+            in {
+                "sta.backend",
+                "sta.update_strategy",
+                "sta.fallback_policy",
+            }
+        )
+
+        assert errors == []
+        assert sta_modes == (
+            ("sta.backend", "cpu", "default"),
+            ("sta.update_strategy", "full", "default"),
+            ("sta.fallback_policy", "error", "default"),
+        )
+        assert build_backend_overrides(resolved) == {}
+
+    @pytest.mark.parametrize("backend", ("cpu", "cuda"))
+    @pytest.mark.parametrize("strategy", ("full", "incremental"))
+    @pytest.mark.parametrize("policy", ("error", "full_with_record"))
+    def test_all_mode_combinations_map_from_toml(self, backend, strategy, policy):
+        flat, parse_errors = parse_toml_params(
+            {
+                "sta": {
+                    "backend": backend,
+                    "update_strategy": strategy,
+                    "fallback_policy": policy,
+                }
+            }
+        )
+        resolved, resolution_errors = resolve_parameters(toml_overrides=flat)
+
+        assert parse_errors == []
+        assert resolution_errors == []
+        assert build_backend_overrides(resolved) == {
+            "STA backend": backend,
+            "STA update strategy": strategy,
+            "STA fallback policy": policy,
+        }
+
+    def test_mode_cli_values_map_to_internal_keys(self):
+        overrides, parse_errors = parse_cli_overrides(
+            [
+                "sta.backend=cuda",
+                "sta.update_strategy=incremental",
+                "sta.fallback_policy=full_with_record",
+            ]
+        )
+        resolved, resolution_errors = resolve_parameters(cli_overrides=overrides)
+
+        assert parse_errors == []
+        assert resolution_errors == []
+        assert build_backend_overrides(resolved) == {
+            "STA backend": "cuda",
+            "STA update strategy": "incremental",
+            "STA fallback policy": "full_with_record",
+        }
+
+    @pytest.mark.parametrize(
+        "pair",
+        (
+            "sta.backend=CPU",
+            "sta.update_strategy=partial",
+            "sta.fallback_policy=silent",
+        ),
+    )
+    def test_invalid_mode_choices_are_rejected(self, pair):
+        overrides, errors = parse_cli_overrides([pair])
+        assert overrides == {}
+        assert len(errors) == 1
+        assert "not in allowed choices" in errors[0]
