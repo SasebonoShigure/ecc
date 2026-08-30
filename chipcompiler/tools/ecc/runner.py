@@ -21,14 +21,23 @@ from chipcompiler.tools.ecc.module import ECCToolsModule
 from chipcompiler.tools.ecc.plot import ECCToolsPlot
 from chipcompiler.tools.ecc.sta_artifacts import discard_sta_outputs
 from chipcompiler.tools.ecc.sta_mode import (
+    StaExecutionContractError,
     StaExecutionRecord,
     StaExecutionRequest,
+    StaUpdateStrategy,
     preflight_stage1_request,
     request_from_mapping,
 )
 from chipcompiler.tools.ecc.sta_qor import (
     POST_SYNTHESIS_STA_CORNER,
-    sta_artifact_directory,
+)
+from chipcompiler.tools.ecc.sta_signoff import (
+    preflight_sta_direct_run,
+    preflight_sta_signoff_run,
+)
+from chipcompiler.tools.ecc.sta_snapshot import (
+    StaAnalysisContext,
+    StaSnapshotObservation,
 )
 from chipcompiler.tools.ecc.subflow import EccSubFlow, EccSubFlowEnum
 from chipcompiler.tools.ecc.utility import is_eda_exist
@@ -84,6 +93,54 @@ def _log_sta_execution_record(workspace: Workspace, record: StaExecutionRecord) 
         record.fallback_to_full,
         fallback_reason,
     )
+
+
+def _log_sta_snapshot_observation(
+    workspace: Workspace,
+    context: StaAnalysisContext,
+    observation: StaSnapshotObservation | None,
+) -> None:
+    if observation is None:
+        raise StaExecutionContractError(
+            "incremental STA run did not publish a released snapshot observation"
+        )
+    workspace.logger.info(
+        "STA CSR snapshot context=%s/%s/%s state=%s token=%s generation=%s "
+        "nodes=%s arcs=%s levels=%s host_bytes=%s/%s timing_ms=%s/%s/%s",
+        context.liberty_corner,
+        context.temperature,
+        context.rc_corner,
+        observation.state.value,
+        observation.identity.session_token,
+        observation.identity.graph_generation,
+        observation.counts.nodes,
+        observation.counts.arcs,
+        observation.counts.levels,
+        observation.host_bytes.logical,
+        observation.host_bytes.capacity,
+        observation.timing_ms.export,
+        observation.timing_ms.reference,
+        observation.timing_ms.scatter,
+    )
+
+
+def _make_sta_snapshot_capture(
+    expected_context: StaAnalysisContext,
+    label: str,
+):
+    captured: list[StaSnapshotObservation | None] = []
+
+    def capture(
+        context: StaAnalysisContext,
+        observation: StaSnapshotObservation | None,
+    ) -> None:
+        if captured:
+            raise StaExecutionContractError(f"{label} snapshot sink may only be called once")
+        if context != expected_context:
+            raise StaExecutionContractError(f"{label} snapshot sink context mismatch")
+        captured.append(observation)
+
+    return captured, capture
 
 
 def copy_rcx_spef_outputs(workspace: Workspace, step: EccStep):
@@ -334,6 +391,7 @@ def run_sta_without_spef(
     synthesis result when this function returns ``False``.
     """
     try:
+        run_item = preflight_sta_direct_run(workspace, step)
         execution_request = _workspace_sta_execution_request(workspace)
         preflight_stage1_request(execution_request)
     except Exception as exc:
@@ -352,33 +410,11 @@ def run_sta_without_spef(
 
     try:
         netlist_path = step.output.verilog or ""
-        liberty_paths = workspace.pdk.libs
-        sdc_path = workspace.pdk.sdc
-        data_dir = step.data.dir or ""
-        report_root = step.report.dir or ""
-        feature_root = step.feature.dir or ""
-
-        if not netlist_path or not os.path.isfile(netlist_path):
-            raise FileNotFoundError(f"synthesis netlist does not exist: {netlist_path}")
-
-        missing_liberty_paths = [
-            liberty_path for liberty_path in liberty_paths if not os.path.isfile(liberty_path)
-        ]
-        if not liberty_paths or missing_liberty_paths:
-            raise FileNotFoundError(
-                f"STA liberty files are missing: {missing_liberty_paths or liberty_paths}"
-            )
-
-        if not sdc_path or not os.path.isfile(sdc_path):
-            raise FileNotFoundError(f"STA SDC does not exist: {sdc_path}")
-        if not data_dir or not report_root or not feature_root:
-            raise ValueError("synthesis STA data, report, or feature directory is not configured")
-
-        work_dir = Path(data_dir) / "sta"
-        work_dir.mkdir(parents=True, exist_ok=True)
-        corner = POST_SYNTHESIS_STA_CORNER
-        report_dir = Path(report_root) / corner
-        feature_dir = Path(feature_root) / corner
+        Path(run_item.work_dir).mkdir(parents=True, exist_ok=True)
+        snapshot_capture, capture_snapshot = _make_sta_snapshot_capture(
+            run_item.analysis_context,
+            "post-synthesis STA",
+        )
 
         if ecc_module is None:
             ecc_module = ECCToolsModule()
@@ -400,29 +436,34 @@ def run_sta_without_spef(
             verilog=netlist_path,
             top_module=workspace.design.top_module,
         )
-        sta_config = _workspace_sta_config_path(workspace)
-        if sta_config is None:
-            raise ValueError("workspace STA config path is not configured")
 
         execution_record = ecc_module.run_timing(
-            config=sta_config,
-            work_dir=work_dir,
-            report_dir=report_dir,
-            feature_dir=feature_dir,
-            lib_paths=liberty_paths,
-            sdc_path=sdc_path,
-            max_paths=workspace.parameters.data.get("STA max paths", 1000),
-            corner=corner,
+            config=run_item.config,
+            work_dir=run_item.work_dir,
+            report_dir=run_item.report_dir,
+            feature_dir=run_item.feature_dir,
+            lib_paths=run_item.liberty_files,
+            sdc_path=run_item.sdc_path,
+            max_paths=run_item.max_paths,
+            corner=run_item.artifact_corner,
             execution_request=execution_request,
+            analysis_context=run_item.analysis_context,
+            snapshot_observation_sink=capture_snapshot,
         )
+        if len(snapshot_capture) != 1:
+            raise StaExecutionContractError(
+                "post-synthesis STA snapshot sink must be called exactly once"
+            )
         _log_sta_execution_record(workspace, execution_record)
+        if execution_request.update_strategy is StaUpdateStrategy.INCREMENTAL:
+            _log_sta_snapshot_observation(workspace, run_item.analysis_context, snapshot_capture[0])
     except Exception as exc:
         workspace.logger.warning("Post-synthesis STA failed; synthesis result is kept: %s", exc)
         return False
     workspace.logger.info(
         "Post-synthesis STA artifacts saved to report=%s feature=%s",
-        report_dir,
-        feature_dir,
+        run_item.report_dir,
+        run_item.feature_dir,
     )
     return True
 
@@ -981,6 +1022,7 @@ def run_sta(workspace: Workspace, step: EccStep, ecc_module: ECCToolsModule | No
     """
     run sta
     """
+    signoff_items = preflight_sta_signoff_run(workspace, step)
     execution_request = _workspace_sta_execution_request(workspace)
     preflight_stage1_request(execution_request)
 
@@ -995,98 +1037,42 @@ def run_sta(workspace: Workspace, step: EccStep, ecc_module: ECCToolsModule | No
 
     sub_flow.update_step(step_name=EccSubFlowEnum.load_data.value, state=StateEnum.Success)
 
-    signoff_items = collect_sta_signoff_items(workspace)
-    if not signoff_items:
-        workspace.logger.error("No signoff STA items found")
-        sub_flow.update_step(step_name=EccSubFlowEnum.run_sta.value, state=StateEnum.Imcomplete)
-        return False
-    sta_config = _workspace_sta_config_path(workspace)
-    if sta_config is None:
-        workspace.logger.error("workspace STA config path is not configured")
-        sub_flow.update_step(step_name=EccSubFlowEnum.run_sta.value, state=StateEnum.Imcomplete)
-        return False
-
-    if not os.path.exists(workspace.pdk.sdc):
-        workspace.logger.error("STA SDC does not exist: %s", workspace.pdk.sdc)
-        sub_flow.update_step(step_name=EccSubFlowEnum.run_sta.value, state=StateEnum.Imcomplete)
-        return False
-
     for signoff_item in signoff_items:
-        corner_name = signoff_item["corner"]
-        temperature = signoff_item["temperature"]
-        rcx_corner_name = signoff_item["rcx_corner"]
-        liberty_files = signoff_item["liberty_files"]
-        spef_file = signoff_item["spef_file"]
-
-        if not os.path.exists(spef_file):
-            workspace.logger.error(
-                "STA SPEF does not exist for %s/%s at %sC: %s",
-                corner_name,
-                rcx_corner_name,
-                temperature,
-                spef_file,
-            )
-            sub_flow.update_step(step_name=EccSubFlowEnum.run_sta.value, state=StateEnum.Imcomplete)
-            return False
-
-        missing_liberty_files = [
-            lib_path for lib_path in liberty_files if not os.path.exists(lib_path)
-        ]
-        if len(liberty_files) <= 0 or missing_liberty_files:
-            workspace.logger.error(
-                "STA liberty does not exist for %s: %s; missing: %s",
-                corner_name,
-                liberty_files,
-                missing_liberty_files,
-            )
-            sub_flow.update_step(step_name=EccSubFlowEnum.run_sta.value, state=StateEnum.Imcomplete)
-            return False
-
-        report_dir = sta_artifact_directory(
-            step.report.dir or "",
-            corner_name,
-            temperature,
-            rcx_corner_name,
+        snapshot_capture, capture_snapshot = _make_sta_snapshot_capture(
+            signoff_item.analysis_context,
+            "signoff STA",
         )
-        feature_dir = sta_artifact_directory(
-            step.feature.dir or "",
-            corner_name,
-            temperature,
-            rcx_corner_name,
-        )
-        if report_dir is None or feature_dir is None:
-            workspace.logger.error(
-                "STA report or feature directory is not configured for %s/%s",
-                corner_name,
-                rcx_corner_name,
-            )
-            sub_flow.update_step(step_name=EccSubFlowEnum.run_sta.value, state=StateEnum.Imcomplete)
-            return False
-
-        corner = f"{report_dir.parent.name}/{report_dir.name}"
 
         execution_record = ecc_module.run_timing(
-            config=sta_config,
-            work_dir=(step.data.steps or {}).get(StepEnum.STA.value, ""),
-            report_dir=report_dir,
-            feature_dir=feature_dir,
-            lib_paths=liberty_files,
-            sdc_path=workspace.pdk.sdc,
-            spef_path=spef_file,
+            config=signoff_item.config,
+            work_dir=signoff_item.work_dir,
+            report_dir=signoff_item.report_dir,
+            feature_dir=signoff_item.feature_dir,
+            lib_paths=signoff_item.liberty_files,
+            sdc_path=signoff_item.sdc_path,
+            spef_path=signoff_item.spef_path,
             output_modes=("report", "structured"),
-            max_paths=workspace.parameters.data.get("STA max paths", 1000),
-            corner=corner,
+            max_paths=signoff_item.max_paths,
+            corner=signoff_item.artifact_corner,
             execution_request=execution_request,
+            analysis_context=signoff_item.analysis_context,
+            snapshot_observation_sink=capture_snapshot,
         )
+        if len(snapshot_capture) != 1:
+            raise StaExecutionContractError("signoff STA snapshot sink must be called exactly once")
         _log_sta_execution_record(workspace, execution_record)
+        if execution_request.update_strategy is StaUpdateStrategy.INCREMENTAL:
+            _log_sta_snapshot_observation(
+                workspace, signoff_item.analysis_context, snapshot_capture[0]
+            )
 
         workspace.logger.info(
             "STA artifacts for %s/%s at %sC saved to report=%s feature=%s",
-            corner_name,
-            rcx_corner_name,
-            temperature,
-            report_dir,
-            feature_dir,
+            signoff_item.analysis_context.liberty_corner,
+            signoff_item.analysis_context.rc_corner,
+            signoff_item.analysis_context.temperature,
+            signoff_item.report_dir,
+            signoff_item.feature_dir,
         )
 
     sub_flow.update_step(step_name=EccSubFlowEnum.run_sta.value, state=StateEnum.Success)

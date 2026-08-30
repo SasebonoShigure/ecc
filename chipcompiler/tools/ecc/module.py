@@ -2,6 +2,7 @@
 import json
 import os
 import shutil
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TypeAlias
 
@@ -12,11 +13,22 @@ from chipcompiler.tools.ecc.sta_mode import (
     request_from_mapping,
 )
 from chipcompiler.tools.ecc.sta_session import IncrementalStaSession
+from chipcompiler.tools.ecc.sta_snapshot import (
+    StaAnalysisContext,
+    StaSnapshotObservation,
+    make_direct_sta_analysis_context,
+    validate_sta_analysis_context,
+    validate_sta_spef_rc_consistency,
+)
 from chipcompiler.utility.path import path_text, path_texts
 
 # Path arguments to the native-wrapper methods are normalized via path_text(),
 # so they accept a Path, a str, or None (a step group field is Path | None).
 PathArg: TypeAlias = str | Path | None
+StaSnapshotObservationSink: TypeAlias = Callable[
+    [StaAnalysisContext, StaSnapshotObservation | None],
+    None,
+]
 
 
 STA_OUTPUT_MODES = frozenset(("report", "structured"))
@@ -664,7 +676,7 @@ class ECCToolsModule:
         work_dir: PathArg = "",
         report_dir: PathArg = "",
         feature_dir: PathArg = "",
-        lib_paths: list[Path] | list[str] | None = None,
+        lib_paths: Sequence[str | Path] | None = None,
         sdc_path: str = "",
         spef_path: str = "",
         output_modes: tuple[str, ...] = ("report", "structured"),
@@ -672,31 +684,43 @@ class ECCToolsModule:
         max_paths: int = 1000,
         corner: str = "",
         execution_request: StaExecutionRequest | None = None,
+        analysis_context: StaAnalysisContext | None = None,
+        snapshot_observation_sink: StaSnapshotObservationSink | None = None,
     ):
-        if execution_request is None:
-            execution_request = request_from_mapping({})
-        preflight_stage1_request(execution_request)
-        if lib_paths is None:
-            lib_paths = []
         modes = _normalize_sta_output_modes(output_modes)
+        resolved_context = (
+            make_direct_sta_analysis_context() if analysis_context is None else analysis_context
+        )
+        validate_sta_analysis_context(resolved_context)
+        validate_sta_spef_rc_consistency(resolved_context, spef_path)
+        normalized_lib_paths: tuple[str | Path, ...] = () if lib_paths is None else tuple(lib_paths)
         if not work_dir:
             raise ValueError("STA work_dir is required for artifact collection")
-        if (
-            isinstance(max_paths_per_analysis, bool)
-            or not isinstance(max_paths_per_analysis, int)
-            or max_paths_per_analysis <= 0
-        ):
+        if type(max_paths_per_analysis) is not int or max_paths_per_analysis <= 0:
             raise ValueError("STA max_paths_per_analysis must be a positive integer")
-        if isinstance(max_paths, bool) or not isinstance(max_paths, int) or max_paths <= 0:
+        if type(max_paths) is not int or max_paths <= 0:
             raise ValueError("STA max_paths must be a positive integer")
         if "report" in modes and not report_dir:
             raise ValueError("STA report_dir is required when report output is requested")
         if "structured" in modes and not feature_dir:
             raise ValueError("STA feature_dir is required when structured output is requested")
+        if (
+            "report" in modes
+            and "structured" in modes
+            and Path(report_dir or "").resolve(strict=False)
+            == Path(feature_dir or "").resolve(strict=False)
+        ):
+            raise ValueError("STA report_dir and feature_dir must not alias")
+        if snapshot_observation_sink is not None and not callable(snapshot_observation_sink):
+            raise ValueError("STA snapshot_observation_sink must be callable or None")
+
+        if execution_request is None:
+            execution_request = request_from_mapping({})
+        preflight_stage1_request(execution_request)
 
         discard_sta_run_outputs(work_dir, report_dir, feature_dir, modes)
 
-        self.ecc.lib_init(lib_paths=path_texts(lib_paths))
+        self.ecc.lib_init(lib_paths=path_texts(list(normalized_lib_paths)))
         self.ecc.sdc_init(path_text(sdc_path))
         self.ecc.spef_init(path_text(spef_path))
         config_dict = {}
@@ -715,10 +739,14 @@ class ECCToolsModule:
         with IncrementalStaSession(
             self.ecc,
             execution_request,
+            resolved_context,
             config=path_text(config),
             config_dict=config_dict,
         ) as sta_session:
             execution_record = sta_session.run_full_baseline()
+        snapshot_observation = sta_session.snapshot_observation
+        if snapshot_observation_sink is not None:
+            snapshot_observation_sink(resolved_context, snapshot_observation)
 
         publish_sta_artifacts(
             work_dir=work_dir or "",

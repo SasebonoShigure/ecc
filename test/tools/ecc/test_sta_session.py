@@ -15,6 +15,9 @@ from chipcompiler.tools.ecc.sta_mode import (
     preflight_stage1_request,
 )
 from chipcompiler.tools.ecc.sta_session import IncrementalStaSession
+from chipcompiler.tools.ecc.sta_snapshot import make_direct_sta_analysis_context
+
+_CONTEXT = make_direct_sta_analysis_context()
 
 
 def _request(strategy=StaUpdateStrategy.FULL):
@@ -92,8 +95,9 @@ class FakeNativeSession:
         self.close_result = close_result
         self.calls = []
         self.state = "created"
+        self.session_token = 1
 
-    def initialize(self, *, config, config_dict):
+    def initialize(self, *, analysis_context, config, config_dict):
         self.calls.append(("initialize", config, dict(config_dict)))
         if self.init_error is not None:
             raise self.init_error
@@ -106,6 +110,10 @@ class FakeNativeSession:
             raise self.run_error
         self.state = "baseline_executed"
         return _record_mapping(self.request)
+
+    @property
+    def csr_snapshot_observation(self):
+        return None
 
     def close(self):
         self.calls.append(("close",))
@@ -144,6 +152,7 @@ def test_session_returns_validated_full_record_and_closes():
     with IncrementalStaSession(
         native,
         request,
+        _CONTEXT,
         config="sta.json",
         config_dict={"-max_paths": "100"},
     ) as session:
@@ -166,7 +175,7 @@ def test_factory_native_error_is_converted_and_chained():
 
     with (
         pytest.raises(StaSessionError) as raised,
-        IncrementalStaSession(native, _request()),
+        IncrementalStaSession(native, _request(), _CONTEXT),
     ):
         pytest.fail("body must not execute")
 
@@ -189,7 +198,7 @@ def test_init_native_unsupported_is_converted_and_handle_is_closed():
 
     with (
         pytest.raises(StaUnsupportedError) as raised,
-        IncrementalStaSession(native, _request()),
+        IncrementalStaSession(native, _request(), _CONTEXT),
     ):
         pytest.fail("body must not execute")
 
@@ -207,7 +216,7 @@ def test_run_native_error_is_converted_and_session_is_closed():
 
     with (
         pytest.raises(StaSessionError) as raised,
-        IncrementalStaSession(native, _request()) as session,
+        IncrementalStaSession(native, _request(), _CONTEXT) as session,
     ):
         session.run_full_baseline()
 
@@ -224,7 +233,7 @@ def test_run_native_error_is_converted_and_session_is_closed():
 def test_close_native_error_is_converted_and_not_retried():
     native_error = _native_error(status_code="cleanup_failed", state="closed")
     native = FakeNativeModule(close_error=native_error)
-    session = IncrementalStaSession(native, _request())
+    session = IncrementalStaSession(native, _request(), _CONTEXT)
 
     with pytest.raises(StaSessionError) as raised, session:
         pass
@@ -246,7 +255,7 @@ def test_body_typed_error_remains_primary_when_typed_close_fails_once():
     )
     native_error = _native_error(status_code="cleanup_failed", state="closed")
     native = FakeNativeModule(close_error=native_error)
-    session = IncrementalStaSession(native, request)
+    session = IncrementalStaSession(native, request, _CONTEXT)
 
     with pytest.raises(StaSessionError, match="body failed") as raised, session:
         raise body_error
@@ -280,7 +289,7 @@ def test_malformed_native_error_is_a_chained_contract_error(attribute, value, er
 
     with (
         pytest.raises(StaExecutionContractError, match=error_match) as raised,
-        IncrementalStaSession(native, _request()),
+        IncrementalStaSession(native, _request(), _CONTEXT),
     ):
         pytest.fail("body must not execute")
 
@@ -300,7 +309,7 @@ def test_native_status_and_capability_reason_must_be_consistent(status_code, cap
 
     with (
         pytest.raises(StaExecutionContractError) as raised,
-        IncrementalStaSession(native, _request()),
+        IncrementalStaSession(native, _request(), _CONTEXT),
     ):
         pytest.fail("body must not execute")
 
@@ -313,7 +322,7 @@ def test_native_error_request_must_match_immutable_request():
 
     with (
         pytest.raises(StaExecutionContractError, match="immutable session request") as raised,
-        IncrementalStaSession(native, _request()),
+        IncrementalStaSession(native, _request(), _CONTEXT),
     ):
         pytest.fail("body must not execute")
 
@@ -325,7 +334,7 @@ def test_enter_init_failure_closes_handle():
 
     with (
         pytest.raises(ValueError, match="init failed"),
-        IncrementalStaSession(native, _request()),
+        IncrementalStaSession(native, _request(), _CONTEXT),
     ):
         pytest.fail("body must not execute")
 
@@ -338,7 +347,7 @@ def test_factory_value_error_is_not_converted():
 
     with (
         pytest.raises(ValueError, match="factory failed") as raised,
-        IncrementalStaSession(native, _request()),
+        IncrementalStaSession(native, _request(), _CONTEXT),
     ):
         pytest.fail("body must not execute")
 
@@ -351,7 +360,7 @@ def test_run_runtime_error_is_not_converted():
 
     with (
         pytest.raises(RuntimeError, match="run failed") as raised,
-        IncrementalStaSession(native, _request()) as session,
+        IncrementalStaSession(native, _request(), _CONTEXT) as session,
     ):
         session.run_full_baseline()
 
@@ -368,7 +377,7 @@ def test_enter_false_status_is_contract_error_and_closes_handle():
 
     with (
         pytest.raises(StaExecutionContractError, match="initialize must return None"),
-        IncrementalStaSession(native, _request()),
+        IncrementalStaSession(native, _request(), _CONTEXT),
     ):
         pytest.fail("body must not execute")
 
@@ -385,7 +394,7 @@ def test_enter_preserves_init_error_and_chains_close_error():
 
     with (
         pytest.raises(ValueError, match="init failed") as error,
-        IncrementalStaSession(native, _request()),
+        IncrementalStaSession(native, _request(), _CONTEXT),
     ):
         pytest.fail("body must not execute")
 
@@ -401,7 +410,7 @@ def test_exit_preserves_body_error_and_chains_close_error():
 
     with (
         pytest.raises(ValueError, match="body failed") as error,
-        IncrementalStaSession(native, _request()),
+        IncrementalStaSession(native, _request(), _CONTEXT),
     ):
         raise body_error
 
@@ -411,7 +420,7 @@ def test_exit_preserves_body_error_and_chains_close_error():
 
 def test_close_failure_without_primary_error_propagates_once():
     native = FakeNativeModule(close_error=RuntimeError("close failed"))
-    session = IncrementalStaSession(native, _request())
+    session = IncrementalStaSession(native, _request(), _CONTEXT)
 
     with pytest.raises(RuntimeError, match="close failed"), session:
         pass
@@ -422,7 +431,7 @@ def test_close_failure_without_primary_error_propagates_once():
 
 def test_close_false_status_is_contract_error_and_is_not_retried():
     native = FakeNativeModule(close_result=False)
-    session = IncrementalStaSession(native, _request())
+    session = IncrementalStaSession(native, _request(), _CONTEXT)
 
     with pytest.raises(StaExecutionContractError, match="close must return None"), session:
         pass
@@ -440,7 +449,7 @@ def test_native_record_mismatch_is_a_contract_error():
 
     with (
         pytest.raises(StaExecutionContractError, match="differs"),
-        IncrementalStaSession(native, request) as session,
+        IncrementalStaSession(native, request, _CONTEXT) as session,
     ):
         native.session.request = _request(StaUpdateStrategy.INCREMENTAL)
         session.run_full_baseline()

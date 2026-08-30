@@ -1,11 +1,17 @@
+import json
+
 import pytest
 
 from chipcompiler.data import (
+    PDK,
     EccData,
     EccFeature,
+    EccOutput,
     EccReport,
     EccStep,
+    OriginDesign,
     Parameters,
+    StepEnum,
     Workspace,
 )
 from chipcompiler.tools.ecc import runner as ecc_runner
@@ -26,10 +32,23 @@ def _write_stale_files(paths):
         path.write_bytes(b"stale\n")
 
 
+def _write(path, text=""):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
 def test_post_synthesis_cuda_preflight_preserves_stale_artifacts(tmp_path, monkeypatch):
+    netlist = _write(tmp_path / "output" / "gcd.v")
+    liberty = _write(tmp_path / "pdk" / "std.lib")
+    sdc = _write(tmp_path / "pdk" / "gcd.sdc")
+    _write(tmp_path / "config" / "sta.json", "{}")
+
     logger = _FakeLogger()
     workspace = Workspace(
         directory=tmp_path,
+        design=OriginDesign(name="gcd", top_module="gcd"),
+        pdk=PDK(libs=[liberty], sdc=sdc),
         parameters=Parameters(
             data={
                 "STA backend": "cuda",
@@ -40,6 +59,7 @@ def test_post_synthesis_cuda_preflight_preserves_stale_artifacts(tmp_path, monke
         logger=logger,
     )
     step = EccStep(
+        output=EccOutput(verilog=netlist),
         data=EccData(dir=tmp_path / "data"),
         feature=EccFeature(dir=tmp_path / "feature"),
         report=EccReport(dir=tmp_path / "report"),
@@ -69,9 +89,24 @@ def test_post_synthesis_cuda_preflight_preserves_stale_artifacts(tmp_path, monke
 
 
 def test_signoff_cuda_preflight_precedes_engine_creation(tmp_path, monkeypatch):
+    liberty = _write(tmp_path / "pdk" / "max.lib")
+    sdc = _write(tmp_path / "pdk" / "gcd.sdc")
+    _write(tmp_path / "RCX_ecc" / "output" / "gcd_RCworst_125C.spef")
+    _write(
+        tmp_path / "config" / "sta.json",
+        json.dumps(
+            {
+                "liberty": [{"corner": "MAX", "temperature": 125, "path": [str(liberty)]}],
+                "signoff": [{"MAX": ["RCworst"]}],
+            }
+        ),
+    )
+
     logger = _FakeLogger()
     workspace = Workspace(
         directory=tmp_path,
+        design=OriginDesign(name="gcd", top_module="gcd"),
+        pdk=PDK(sdc=sdc),
         parameters=Parameters(
             data={
                 "STA backend": "cuda",
@@ -82,7 +117,7 @@ def test_signoff_cuda_preflight_precedes_engine_creation(tmp_path, monkeypatch):
         logger=logger,
     )
     step = EccStep(
-        data=EccData(dir=tmp_path / "data"),
+        data=EccData(steps={StepEnum.STA.value: tmp_path / "data" / "sta"}),
         feature=EccFeature(dir=tmp_path / "feature"),
         report=EccReport(dir=tmp_path / "report"),
     )

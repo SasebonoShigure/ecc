@@ -27,6 +27,17 @@
 | 任意 `*/incremental` 且没有 mutation | 未实现 typed contract | 只建立 full baseline：`execution_kind=baseline_only`、`incremental_batch_executed=false`、`fallback_to_full=false`；不得计入 incremental speedup。 | `full_graph` |
 | CPU/GPU affected-cone timing propagation | 后续研究 | 论文复现完成后单独立项、单独验证、单独报告，不得混入核心四模式 speedup。 | `affected_cone`（仅将来实现后） |
 
+### 2.1 阶段 2 Step 7 实现边界
+
+下表只记录当前实现进度，不改写上表冻结的阶段 0 历史状态，也不把尚未接入 mutation batch 的 session 计为增量加速。
+
+| 能力 | 截至阶段 2 Step 7 的状态 |
+|---|---|
+| `cpu/full` session | 保持既有 full execution record 与 artifact 兼容；CSR snapshot observation 在 active/released 均为 `None`。 |
+| `cpu/incremental` 且没有 mutation | 已实现 `baseline_only` typed record；初次 full capture 发布与 analysis context、session token 绑定的 `ready/gen0` observation，正常 close 后只发布经验证的 `released` observation。 |
+| direct / all-corner STA context | 已实现 immutable analysis context、SPEF/RC consistency、regular-file/alias/unique-destination pure preflight，以及每个 corner exact-once observation sink；失败先于 artifact discard、subflow、engine 与 native session。 |
+| mutation batch、generation > 0、reference/scatter production API、CUDA | 尚未作为 production 增量路径开放，不得据此宣称 incremental speedup 或 backend parity。 |
+
 ## 3. Edit 支持矩阵
 
 “Error policy”表示请求 `fallback_policy=error` 时的处理；“Full-with-record”表示调用者显式选择 `fallback_policy=full_with_record` 时的处理。所有 edit 必须先 normalize/validate，再修改 staged state；失败不得留下部分 mutation。

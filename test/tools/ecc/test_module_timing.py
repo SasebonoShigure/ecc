@@ -17,6 +17,23 @@ from chipcompiler.tools.ecc.sta_mode import (
     StaUpdateStrategy,
     preflight_stage1_request,
 )
+from chipcompiler.tools.ecc.sta_snapshot import (
+    StaAnalysisContext,
+    corner_fingerprint,
+)
+
+READY_SNAPSHOT_PATH = (
+    Path(__file__).parents[3]
+    / "chipcompiler/thirdparty/ecc-tools/src/operation/iSTA/benchmark/schema"
+    / "csr_snapshot_corpus_v1/baselines/ready_empty.json"
+)
+
+
+def _snapshot_mapping(context, state):
+    mapping = json.loads(READY_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+    mapping["state"] = state
+    mapping["identity"]["corner_fingerprint"] = corner_fingerprint(context)
+    return mapping
 
 
 class FakeNativeStaSession:
@@ -28,8 +45,11 @@ class FakeNativeStaSession:
             fallback_policy=StaFallbackPolicy(request["fallback_policy"]),
         )
         self.state = "created"
+        self.session_token = 1
+        self.analysis_context = None
 
-    def initialize(self, *, config, config_dict):
+    def initialize(self, *, analysis_context, config, config_dict):
+        self.analysis_context = StaAnalysisContext(**dict(analysis_context))
         self.owner.init_sta(config=config, config_dict=dict(config_dict))
         self.state = "initialized"
 
@@ -41,6 +61,16 @@ class FakeNativeStaSession:
             name: value.value if isinstance(value, Enum) else value
             for name, value in vars(record).items()
         }
+
+    @property
+    def csr_snapshot_observation(self):
+        if self.request.update_strategy is StaUpdateStrategy.FULL:
+            return None
+        if self.state == "baseline_executed":
+            return _snapshot_mapping(self.analysis_context, "ready")
+        if self.state == "closed":
+            return _snapshot_mapping(self.analysis_context, "released")
+        return None
 
     def close(self):
         self.owner.destroy_sta()
@@ -344,6 +374,11 @@ def test_run_timing_stringifies_path_arguments(tmp_path):
         lib_paths=[Path("/pdk/lib.lib")],
         sdc_path=Path("/ws/design.sdc"),
         spef_path=Path("/ws/design.spef"),
+        analysis_context=StaAnalysisContext(
+            liberty_corner="MAX_125",
+            temperature="125",
+            rc_corner="RCworst",
+        ),
         corner="MAX_125/RCworst",
     )
 

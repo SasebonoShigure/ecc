@@ -18,13 +18,36 @@ from chipcompiler.tools.ecc.sta_mode import (
     execution_record_from_mapping,
     preflight_stage1_request,
 )
+from chipcompiler.tools.ecc.sta_snapshot import (
+    StaAnalysisContext,
+    StaReleaseObservationAction,
+    StaSnapshotObservation,
+    StaSnapshotState,
+    corner_fingerprint,
+    snapshot_observation_from_mapping,
+    sta_analysis_context_to_native_mapping,
+    validate_snapshot_observation_transition,
+    validate_sta_analysis_context,
+)
 
 
 class _NativeStaSession(Protocol):
     @property
     def state(self) -> str: ...
 
-    def initialize(self, *, config: str, config_dict: Mapping[str, str]) -> None: ...
+    @property
+    def session_token(self) -> object: ...
+
+    @property
+    def csr_snapshot_observation(self) -> object: ...
+
+    def initialize(
+        self,
+        *,
+        analysis_context: Mapping[str, str],
+        config: str,
+        config_dict: Mapping[str, str],
+    ) -> None: ...
 
     def run_full_baseline(self) -> Mapping[str, object]: ...
 
@@ -41,6 +64,7 @@ _NATIVE_REQUEST_KEYS = frozenset({"backend", "update_strategy", "fallback_policy
 _NATIVE_SESSION_STATES = frozenset(
     {"created", "initialized", "baseline_executed", "poisoned", "closed"}
 )
+_MAX_SESSION_TOKEN = (1 << 64) - 1
 _ResultT = TypeVar("_ResultT")
 
 
@@ -159,6 +183,12 @@ def _request_payload(request: StaExecutionRequest) -> dict[str, str]:
     }
 
 
+def _require_session_token(value: object) -> int:
+    if type(value) is not int or not 0 < value <= _MAX_SESSION_TOKEN:
+        raise StaExecutionContractError("native STA session token must be a nonzero uint64")
+    return value
+
+
 class IncrementalStaSession:
     """Own one native STA lifecycle and validate its execution telemetry."""
 
@@ -166,22 +196,32 @@ class IncrementalStaSession:
         self,
         native_module: _NativeStaModule,
         request: StaExecutionRequest,
+        analysis_context: StaAnalysisContext,
         *,
         config: str = "",
         config_dict: Mapping[str, str] | None = None,
     ) -> None:
         self._native_module = native_module
         self._request = request
+        validate_sta_analysis_context(analysis_context)
+        self._analysis_context = analysis_context
         self._expected_record = preflight_stage1_request(request)
         self._config = config
         self._config_dict = dict(config_dict or {})
         self._native_session: _NativeStaSession | None = None
+        self._session_token: int | None = None
+        self._active_observation: StaSnapshotObservation | None = None
+        self._snapshot_observation: StaSnapshotObservation | None = None
         self._entered = False
         self._closed = False
 
     @property
     def request(self) -> StaExecutionRequest:
         return self._request
+
+    @property
+    def snapshot_observation(self) -> StaSnapshotObservation | None:
+        return self._snapshot_observation
 
     @property
     def state(self) -> str:
@@ -204,13 +244,18 @@ class IncrementalStaSession:
             self._native_session = native_session
             initialize_result = self._call_native(
                 lambda: native_session.initialize(
-                    config=self._config, config_dict=self._config_dict
+                    analysis_context=sta_analysis_context_to_native_mapping(self._analysis_context),
+                    config=self._config,
+                    config_dict=self._config_dict,
                 )
             )
             if initialize_result is not None:
                 raise StaExecutionContractError(
                     "native STA session initialize must return None on success"
                 )
+            self._session_token = _require_session_token(
+                self._call_native(lambda: native_session.session_token)
+            )
         except BaseException as primary_error:
             try:
                 self.close()
@@ -231,21 +276,78 @@ class IncrementalStaSession:
             raise StaExecutionContractError(
                 "native STA execution record differs from the stage-1 preflight outcome"
             )
+        raw_observation = self._call_native(lambda: native_session.csr_snapshot_observation)
+        observation = snapshot_observation_from_mapping(raw_observation)
+        if self._request.update_strategy is StaUpdateStrategy.FULL:
+            if observation is not None:
+                raise StaExecutionContractError(
+                    "cpu/full native STA session must not expose a snapshot observation"
+                )
+        else:
+            if observation is None:
+                raise StaExecutionContractError(
+                    "cpu/incremental native STA session requires a ready snapshot observation"
+                )
+            if (
+                observation.state is not StaSnapshotState.READY
+                or observation.identity.graph_generation != 0
+                or observation.identity.session_token != self._session_token
+                or observation.identity.corner_fingerprint
+                != corner_fingerprint(self._analysis_context)
+                or observation.last_rejection is not None
+                or observation.last_invalidation is not None
+                or observation.timing_ms.reference is not None
+                or observation.timing_ms.scatter is not None
+            ):
+                raise StaExecutionContractError(
+                    "native initial snapshot observation violates the capture contract"
+                )
+        self._active_observation = observation
+        self._snapshot_observation = observation
         return record
 
     def close(self) -> None:
         if self._closed:
             return
 
-        self._closed = True
         native_session = self._native_session
-        self._native_session = None
-        if native_session is not None:
+        active_observation = self._active_observation
+        try:
+            if native_session is None:
+                return
+
             close_result = self._call_native(native_session.close)
+            released_error: BaseException | None = None
+            released_observation: StaSnapshotObservation | None = None
+            try:
+                raw_observation = self._call_native(lambda: native_session.csr_snapshot_observation)
+                released_observation = snapshot_observation_from_mapping(raw_observation)
+                validate_snapshot_observation_transition(
+                    active_observation,
+                    released_observation,
+                    StaReleaseObservationAction(),
+                )
+            except BaseException as error:
+                released_error = error
+
             if close_result is not None:
-                raise StaExecutionContractError(
+                wrong_return = StaExecutionContractError(
                     "native STA session close must return None on success"
                 )
+                if released_error is not None:
+                    raise wrong_return from released_error
+                raise wrong_return
+            if released_error is not None:
+                raise released_error
+
+            self._snapshot_observation = released_observation
+        except BaseException:
+            self._snapshot_observation = None
+            raise
+        finally:
+            self._active_observation = None
+            self._native_session = None
+            self._closed = True
 
     def __exit__(
         self,
