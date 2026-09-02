@@ -1,7 +1,7 @@
 # ECC IncreGPUSTA 阶段 6 详细实施计划
 
-> 状态：v0.5 已冻结；独立设计复审APPROVE；Stage 5已完成，Stage 6编码可开始
-> 前置：Stage 5实现、功能验收、独立审查与报告已闭合；ecc-tools基线为`11ae6d767a4e7dc25b3504326fd7b383e1a711e5`，parent由本计划所在本地提交承载
+> 状态：v1.0 已完成；设计复审与最终全diff实现审查均APPROVE；详见[阶段 6 报告](stage6-report.md)
+> 前置与结果：Stage 5基线为`11ae6d767a4e7dc25b3504326fd7b383e1a711e5`；Stage 6 ecc-tools本地提交为`b8bfc3a79930b0be146ac26ca10dc0e99115f1fc`，未push
 > 范围：CPU mixed incremental levelization reference；继续使用 Stage 5 targeted Dual-CSR 和 full CPU propagation
 > 非范围：CUDA、affected-cone propagation、native/IDB commit、物理设计跨层事务、正式 speedup 结论
 > 验收原则：功能正确性、语义一致性和可重复回归是主证据；hash、fingerprint、对象清单只作证据完整性辅助，不得演变为无上限的“哈希攻防”
@@ -412,3 +412,30 @@ full_levelizer_entry_delta / fallback_count
 - 未参与实现的独立审查者给出`APPROVE`，所有blocker/major/minor闭合；
 - Stage 6报告和总体计划已更新；
 - child先提交、parent后提交，均为本地commit，不push且不夹带`CLAUDE.md`、Stage 1–2会议报告等用户已有修改。
+
+## 14. As-built 完成记录
+
+Stage 6按本计划完成，未改变成功域和非范围：production路径为targeted Dual-CSR + mixed incremental levelization + caller-supplied levels上的full CPU propagation；没有affected-cone、CUDA、native/IDB commit或性能结论。
+
+实现闭合如下：
+
+- 新增DB-free mixed builder、typed ID、corrected indegree Kahn、actual-DAG classifier、reconstruction、validation和pipeline；old-level chain、四类actual edge、parallel/proxy去重、Base/Aux traversal和typed conflict/cycle/view failure均进入属性与microcase覆盖。
+- CSR core新增caller-supplied levelization validator/backend；真实full-levelizer入口guard证明full正控delta=1、external/mixed与malformed external均为0。
+- 公开Stage factory只接收冻结capability与previous levels，内部完成exact-before/index delta/updater/mixed/external propagation/intrinsic validation；failure matrix保留stale、index、updater与timing intrinsic的typed origin/code/field/message。
+- `LevelizationExecutionTrace`为sealed immutable typed object，绑定generation、mode、levels、traversal、真实entry delta、fallback、validation和mixed telemetry；transaction publish与recovery按mode逐descriptor保留唯一真实execution record。
+- controller以baseline `{id,key}` 和逐代node appends重建dense NodeId映射；level按offset、NodeKey→level inverse和逐层精确NodeKey集合绑定，允许合法同层顺序差异，拒绝跨层、traversal与semantic trace篡改。
+- functional receipt只比较rank-free graph/reference/timing语义；两侧levelization分别验证。equal-cost predecessor由证据推导合法winner集合，legal noncompact只报告。
+- frozen synthetic两批与real一批均真实执行mixed path、fallback=0、full entry delta=0，并与独立fresh CPU/full功能等价。
+- active-payload microcase使用合法parallel cell-arc group，真实覆盖same-base peer omission的`kArcMultiplicityMismatch`、aggregate不变、active/inactive ordinal 0 key collision、inactive poison隔离，以及mixed与独立public full功能等价。
+- mode recovery覆盖`g1=full → g2=mixed → poison → 新token rebind/replay → 下一批`，确定性state/trace精确恢复，wall-clock不参与等价。
+
+最终证据：
+
+- GCC 14.3.0 strict Release统一标签14/14 PASS；Ninja Stage 5/6 source isolation 2/2 PASS。
+- Stage 2–5相关广覆盖中148项功能/语义检查PASS；5项历史硬编码inventory继续作为辅助限制单列，不修改数量常量冒充功能修复。
+- parent冻结STA 227/227 PASS；non-PDK为1665 passed、8 skipped、4 deselected、13 xfailed、2个第三方deprecation warning。
+- ASan与UBSan各8/8 PASS，抽查二进制分别真实加载`libasan.so.8`与`libubsan.so.1`，无运行时诊断。
+- 所有变更文件少于700物理行，`git diff --check`干净，无`pycache/pyc/orig/rej/patch/bak`。
+- 最终独立全diff审查结论`APPROVE`，无remaining blocker/major/minor。
+
+完成结论以逐字段功能正确性、typed failure、真实execution path、fresh replay、rollback与source isolation为依据；hash/object/count inventory未被用作核心证明。详细命令、边界和辅助限制见[阶段 6 报告](stage6-report.md)。
