@@ -198,7 +198,7 @@ Python `IncrementalStaSession`：
   - 记录公开配置、默认行为和阶段 1 unsupported 范围。
 - 新增 `test/tools/ecc/test_sta_mode.py`、`test/tools/ecc/test_sta_session.py` 与 `test/tools/ecc/test_runner_sta_mode.py`；窄更新现有 `test_module_timing.py`、registry 与 runner exact-call tests。
 - 修改 `docs/incregpusta/stage0-feature-support-matrix.md`，把 graph generation/fingerprint 的首个实现门更正为阶段 2，并保留阶段 1 execution record 要求。
-- 修改仓库外权威计划 `/home/shigure/code/docs/incregpusta-implementation-plan.md` 的 PDF 路径和阶段 1 设计审查记录。
+- 修改权威计划 [incregpusta-implementation-plan.md](../incregpusta-implementation-plan.md) 的 PDF 路径和阶段 1 设计审查记录；该计划已于 2026-09-05 从仓库外迁入 `ecc/docs`。
 
 不修改 PDK parameter templates，不修改默认 STA artifact 集合，不把 mode 字段塞入 native `config_dict`。
 

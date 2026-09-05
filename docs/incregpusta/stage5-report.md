@@ -197,3 +197,7 @@ env PYTHONDONTWRITEBYTECODE=1 /usr/bin/time -f WALL_SECONDS=%e .venv/bin/python 
 Stage 6只应依赖已冻结的generic `ActiveCsrEdgeView`/`TimingPayloadView`、Dual实现、append-only high-water、active ArcId/payload、generation与telemetry。它不得重新decode flat CSR、重新full-export native graph、假定Aux为空，或把历史StableArcRef ordinal当current active key。
 
 Stage 5保留full direct-view levelization/propagation作为Stage 6 mixed builder的功能oracle。本报告第5节门禁已闭合、最终独立审查无remaining finding；child已提交，本报告随parent本地提交承载。现在可按已APPROVE的Stage 6详细计划进入mixed levelization实现，仍不push。
+
+## 2026-09-05 第二轮清理同步
+
+typed JSON validator 删除已无调用的 helper，以及只由自测触达的 reference library 副本；原 library/temperature 正负例改用实际执行的 `validate_reference_value()`，reference replacement chain 也直接调用该入口。功能 wire/schema 不变。 验证与范围说明见[第二轮清理报告](stage0-stage6-second-cleanup-report.md)。

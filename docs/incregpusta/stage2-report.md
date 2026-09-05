@@ -339,3 +339,7 @@ child Git-visible/unignored artifact scan clean，没有build/result/session/cac
 Step 9已按v0.31冻结计划完成6-repeat采集，并在三次严格候选失败后依用户授权以简化功能口径收口。第3次候选的capture/context/reducer/recheck与结果一致性均通过；严格POST/FINAL未通过且不再重试。Step 10随后按child-first、parent-second创建本地提交；本报告所在parent提交完成阶段2本地封存，提交后只做只读审计，不联网、不fetch、不push。
 
 Step 4仍是detached candidate，Step 5仍是Database-free detached backend，Step 6仍只提供lower-level受控write-back；Step 7组合真实token、exclusive owner、capture/commit与parent observation，Step 8/9只增加隔离的验收与描述性证据，不改变production调用路径。Step 10本地提交使用已确认的全局身份和Git当前时间戳；parent报告不预写自身commit SHA，以本报告所在提交作为最终锚点。
+
+## 2026-09-05 第二轮清理同步
+
+signoff 预检现直接构建最终 `StaSignoffRunItem` tuple，删除中间 source model、重复 config 路径验证、重复 context 规范化及由非空输入约束已保证的末端空结果分支。源文件、corner 顺序、目标碰撞和副作用隔离合同不变。Stage 2 real-differential 同时删除无调用的 schema_ref。 验证与范围说明见[第二轮清理报告](stage0-stage6-second-cleanup-report.md)。

@@ -20,15 +20,6 @@ from chipcompiler.utility import json_read_strict
 
 
 @dataclass(frozen=True)
-class StaSignoffSourceItem:
-    liberty_corner: str
-    temperature: str
-    rc_corner: str
-    liberty_files: tuple[str, ...]
-    spef_path: str
-
-
-@dataclass(frozen=True)
 class StaSignoffRunItem:
     config: str
     work_dir: str
@@ -106,14 +97,6 @@ def _design_token(workspace: Workspace) -> str:
     )
 
 
-def _load_sta_config(workspace: Workspace) -> tuple[str, dict[object, object]]:
-    config_path = _sta_config_path(workspace)
-    data = json_read_strict(config_path)
-    if type(data) is not dict:
-        raise ValueError("STA config root must be an exact dict")
-    return config_path, data
-
-
 def _liberty_items(
     data: dict[object, object],
 ) -> dict[str, tuple[str, tuple[str, ...]]]:
@@ -153,22 +136,30 @@ def _liberty_items(
     return liberty_by_corner
 
 
-def _collect_sta_signoff_source_items_strict(
-    workspace: Workspace,
-) -> tuple[StaSignoffSourceItem, ...]:
-    _, data = _load_sta_config(workspace)
+def preflight_sta_signoff_run(workspace: Workspace, step: EccStep) -> tuple[StaSignoffRunItem, ...]:
+    config_path = _sta_config_path(workspace)
+    data = json_read_strict(config_path)
+    if type(data) is not dict:
+        raise ValueError("STA config root must be an exact dict")
     liberty_by_corner = _liberty_items(data)
-
     signoff_outer = data.get("signoff")
     if type(signoff_outer) is not list or not signoff_outer:
         raise ValueError("STA signoff outer container must be a non-empty exact list")
+
+    sdc_path = _regular_file(workspace.pdk.sdc, "STA SDC")
+    work_dir = _configured_path(
+        (step.data.steps or {}).get(StepEnum.STA.value),
+        "STA work directory",
+    )
+    report_root = _configured_path(step.report.dir, "STA report root")
+    feature_root = _configured_path(step.feature.dir, "STA feature root")
+    max_paths = _positive_max_paths(workspace)
     if workspace.directory is None:
         raise ValueError("workspace directory is not configured")
-
     rcx_output_dir = workspace.directory / f"{StepEnum.RCX.value}_ecc" / "output"
     design_name = _design_token(workspace)
     raw_pairs: set[tuple[str, str]] = set()
-    source_items: list[StaSignoffSourceItem] = []
+    candidates: list[StaSignoffRunItem] = []
 
     for group_index, raw_group in enumerate(signoff_outer):
         group_field = f"STA signoff[{group_index}]"
@@ -206,94 +197,41 @@ def _collect_sta_signoff_source_items_strict(
                     / f"{design_name}_{rc_corner}_{temperature_token(temperature)}C.spef"
                 )
                 validate_sta_spef_rc_consistency(context, spef_path)
-                source_items.append(
-                    StaSignoffSourceItem(
-                        liberty_corner=context.liberty_corner,
-                        temperature=context.temperature,
-                        rc_corner=context.rc_corner,
+                spef_path = _regular_file(spef_path, f"STA SPEF for {corner}/{rc_corner}")
+                report_dir = sta_artifact_directory(report_root, corner, temperature, rc_corner)
+                feature_dir = sta_artifact_directory(feature_root, corner, temperature, rc_corner)
+                if report_dir is None or feature_dir is None:
+                    raise ValueError("STA report or feature destination is not configured")
+                candidates.append(
+                    StaSignoffRunItem(
+                        config=config_path,
+                        work_dir=os.fspath(work_dir),
+                        report_dir=report_dir,
+                        feature_dir=feature_dir,
                         liberty_files=liberty_files,
-                        spef_path=_regular_file(
-                            spef_path,
-                            f"STA SPEF for {corner}/{rc_corner}",
-                        ),
+                        sdc_path=sdc_path,
+                        spef_path=spef_path,
+                        max_paths=max_paths,
+                        artifact_corner=f"{report_dir.parent.name}/{report_dir.name}",
+                        analysis_context=context,
                     )
                 )
-
-    if not raw_pairs:
-        raise ValueError("STA signoff must produce at least one raw corner pair")
-    if not source_items:
-        raise ValueError("STA signoff source tuple must not be empty")
-    return tuple(source_items)
-
-
-def preflight_sta_signoff_run(workspace: Workspace, step: EccStep) -> tuple[StaSignoffRunItem, ...]:
-    config_path = _sta_config_path(workspace)
-    source_items = _collect_sta_signoff_source_items_strict(workspace)
-    sdc_path = _regular_file(workspace.pdk.sdc, "STA SDC")
-    work_dir = _configured_path(
-        (step.data.steps or {}).get(StepEnum.STA.value),
-        "STA work directory",
-    )
-    report_root = _configured_path(step.report.dir, "STA report root")
-    feature_root = _configured_path(step.feature.dir, "STA feature root")
-    max_paths = _positive_max_paths(workspace)
-
-    candidates: list[StaSignoffRunItem] = []
-    for source in source_items:
-        report_dir = sta_artifact_directory(
-            report_root,
-            source.liberty_corner,
-            source.temperature,
-            source.rc_corner,
-        )
-        feature_dir = sta_artifact_directory(
-            feature_root,
-            source.liberty_corner,
-            source.temperature,
-            source.rc_corner,
-        )
-        if report_dir is None or feature_dir is None:
-            raise ValueError("STA report or feature destination is not configured")
-        artifact_corner = f"{report_dir.parent.name}/{report_dir.name}"
-        context = normalize_sta_analysis_context(
-            liberty_corner=source.liberty_corner,
-            temperature=source.temperature,
-            rc_corner=source.rc_corner,
-        )
-        candidates.append(
-            StaSignoffRunItem(
-                config=config_path,
-                work_dir=os.fspath(work_dir),
-                report_dir=report_dir,
-                feature_dir=feature_dir,
-                liberty_files=source.liberty_files,
-                sdc_path=sdc_path,
-                spef_path=source.spef_path,
-                max_paths=max_paths,
-                artifact_corner=artifact_corner,
-                analysis_context=context,
-            )
-        )
 
     artifact_corners = [item.artifact_corner for item in candidates]
     if len(set(artifact_corners)) != len(artifact_corners):
         raise ValueError("STA artifact corner names must be globally unique")
 
-    resolved_destinations: list[Path] = []
-    for item in candidates:
-        resolved_destinations.extend(
-            (
-                _resolved_destination(item.report_dir, "STA report destination"),
-                _resolved_destination(item.feature_dir, "STA feature destination"),
-            )
+    resolved_destinations = [
+        _resolved_destination(path, field)
+        for item in candidates
+        for path, field in (
+            (item.report_dir, "STA report destination"),
+            (item.feature_dir, "STA feature destination"),
         )
+    ]
     if len(set(resolved_destinations)) != len(resolved_destinations):
         raise ValueError("STA report and feature destinations must be globally unique")
-
-    frozen_items = tuple(candidates)
-    if not frozen_items:
-        raise ValueError("STA signoff run tuple must not be empty")
-    return frozen_items
+    return tuple(candidates)
 
 
 def preflight_sta_direct_run(workspace: Workspace, step: WorkspaceStep) -> StaSignoffRunItem:

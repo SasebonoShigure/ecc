@@ -133,7 +133,7 @@ ista_timing_dual_csr_transaction
          Stage 6 batch trace/receipt observation
 ```
 
-`CpuIncrementalLevelizationPipeline` 只负责 pure mixed build/Kahn/reconstruction，不拥有 native candidate、transaction或publish。Stage 6 为 CPU backend 新增一个 public overload，使它消费 caller-supplied `CsrFifoLevelization`；该 overload 必须调用 CSR core 的通用 validator 后才 propagation，并明确不调用 `replayFifoLevelization()`。现有 full overload保持不变，继续作为独立 oracle。
+`runCpuIncrementalLevelization()`（定义于 `CpuIncrementalLevelizationPipeline.{hpp,cpp}`）只负责 pure mixed build/Kahn/reconstruction，不拥有 native candidate、transaction或publish。Stage 6 为 CPU backend 新增一个 public overload，使它消费 caller-supplied `CsrFifoLevelization`；该 overload 必须调用 CSR core 的通用 validator 后才 propagation，并明确不调用 `replayFifoLevelization()`。现有 full overload保持不变，继续作为独立 oracle。
 
 真实 full-levelizer 计数器同样由 `ista_timing_csr_core` 所有：thread-local operation guard在 generic `replayFifoLevelization(edges, payloads, telemetry)` 函数体真实入口递增一次，flat-input overload只转调generic入口而不得双计数。guard产生的move-only delta由私有构造冻结，Stage 6 factory内部读取并写入不可由调用者填值的batch trace。必须有full backend正控delta恰为1、external-level backend delta恰为0、malformed external levels失败仍为0；不得用默认初始化为0的telemetry字段自证。
 
@@ -356,6 +356,8 @@ targeted receipt必须证明当前batch的execution mode=`kMixedStage6`、`n_new
 运行顺序：Stage 6 focused unit/property → Stage 5 Dual/Aux/transaction/capture → Stage 2 generic/full backend → Stage 3 timing edit → Stage 4 buffer trace → Stage 6 production/fresh controller。对 mixed builder/Kahn/reconstruction、Aux microcase和property运行 ASan+UBSan；所有 production C++ 使用 `-Wall -Wextra -Werror -pedantic -ffp-contract=off`。
 
 ## 11. Telemetry 与报告
+
+2026-09-05 第二轮清理：`MixedLevelizationDeterministicTrace` 归属 DB-free mixed 模块，在 `MixedLevelizationTelemetry.hpp` 定义。运行遥测继承这份确定性计数，再增加耗时与 `legal_noncompact`；transaction 的 `projectDeterministicMixedTrace()` 只复制确定性基类。计数恒等式统一使用 `validateMixedTelemetryIdentities()`，transaction 另验 processed count、frontier、重建完成度和 classifier/fallback 约束。JSON 字段与恢复等价语义保持不变。
 
 每批至少记录：
 

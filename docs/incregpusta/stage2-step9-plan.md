@@ -18,7 +18,7 @@ Step 9 复用 Step 8 production steady-clock fields 与 fresh-process controller
 - parent 新增/修订 `docs/incregpusta/stage2-step9-plan.md`；
 - Step 8 最终验收后，surgical 更新 `docs/incregpusta/stage2-report.md`；
 - 在 `build-ista-step8/step9-evidence.*` 内冻结 `step9_outer_driver.py`、`step9_capture.py`、`step9_capture_supervisor.py`、`step9_context.py`、`step9_reduce.py`、`step9_recheck.py`、`step9_provenance.py` 及 JSON receipts；
-- Step8 v0.15 freeze后不再修改 child source/test/schema/CMake、parent生产/测试代码或外层 `docs/incregpusta-implementation-plan.md`；本轮已发生的producer修复是上游Step8 closure，不是Step9越权例外。
+- Step8 v0.15 freeze后不再修改 child source/test/schema/CMake、parent生产/测试代码或权威计划 [incregpusta-implementation-plan.md](../incregpusta-implementation-plan.md)（现位于 `ecc/docs`）；本轮已发生的producer修复是上游Step8 closure，不是Step9越权例外。
 
 本次v0.31计划修订冻结修复后的接口、可信来源与failure semantics。旧诊断工具或失败候选中的任何tool/receipt/review不得直接转正；获批后必须在fresh exclusive candidate中重新冻结七tool exact bytes/SHA、全量两路KAT与两路读码APPROVE，且只存在build tree。
 

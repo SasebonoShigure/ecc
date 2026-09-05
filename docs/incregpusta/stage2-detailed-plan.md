@@ -544,7 +544,7 @@ runner为每个已预解析corner建立局部sink并把context/observation成对
 
 ### 13.3 Workspace外部权威文档
 
-`/home/shigure/code/docs/incregpusta-implementation-plan.md`不属于ECC parent，不能由两仓commit承载。最终顺序固定为：child本地commit → parent code/docs/gitlink本地commit → 外部权威计划回填两个精确SHA/阶段状态 → 独立只读包装审计。parent report使用“本报告所在提交”避免自引用SHA。
+权威计划已于 2026-09-05 迁入 ECC parent 的 [docs/incregpusta-implementation-plan.md](../incregpusta-implementation-plan.md)，可以随 parent 文档提交承载。后续顺序为：child本地commit → 更新 parent code/docs/gitlink 及权威计划中的阶段状态与 child SHA → parent本地commit → 独立只读包装审计。parent report和权威计划使用“本报告/计划所在提交”避免自引用SHA；此前仓库外计划的回填流程仅作为历史记录。
 
 包装审计检查两仓branch/status/direct parent/`git show --check`、gitlink、untracked/generated泄漏、upstream和本地remote-tracking refs是否包含HEAD；只陈述本地可见证据，不联网、不push。
 

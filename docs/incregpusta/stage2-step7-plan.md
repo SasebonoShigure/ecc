@@ -527,14 +527,6 @@ KAT覆盖missing SDC/liberty/netlist/config、空Liberty、destination direct/sy
 
 ~~~python
 @dataclass(frozen=True)
-class StaSignoffSourceItem:
-    liberty_corner: str
-    temperature: str
-    rc_corner: str
-    liberty_files: tuple[str, ...]
-    spef_path: str
-
-@dataclass(frozen=True)
 class StaSignoffRunItem:
     config: str
     work_dir: str
@@ -548,7 +540,7 @@ class StaSignoffRunItem:
     analysis_context: StaAnalysisContext
 ~~~
 
-现有 `runner.collect_sta_signoff_items(workspace) -> list[dict]` 完全保留单参数、list类型、五个legacy键 `corner/temperature/rcx_corner/liberty_files/spef_file`、顺序与当前空列表/日志行为；`run_harden()` 继续只消费该legacy函数，production无需改型。新private `_collect_sta_signoff_source_items_strict(workspace)` 才生成immutable source tuple；`preflight_sta_signoff_run(workspace, step) -> tuple[StaSignoffRunItem, ...]` 仅供 `run_sta()`，`preflight_sta_direct_run(workspace, step) -> StaSignoffRunItem` 仅供 `run_sta_without_spef()`。三条调用边由source gate逐一冻结。
+现有 `runner.collect_sta_signoff_items(workspace) -> list[dict]` 完全保留单参数、list类型、五个legacy键 `corner/temperature/rcx_corner/liberty_files/spef_file`、顺序与当前空列表/日志行为；`run_harden()` 继续只消费该legacy函数，production无需改型。第二轮清理后，`preflight_sta_signoff_run(workspace, step) -> tuple[StaSignoffRunItem, ...]` 在一个只读流程中验证配置并直接构建最终运行项，仅供 `run_sta()`；不再保留中间 source model 或重复规范化 context。`preflight_sta_direct_run(workspace, step) -> StaSignoffRunItem` 仅供 `run_sta_without_spef()`。调用关系由功能回归验证；源码清单门禁已在上一轮清理中删除。
 
 strict preflight一次性、纯只读验证全部corner：
 
@@ -559,8 +551,8 @@ strict preflight一次性、纯只读验证全部corner：
 - duplicate liberty corner、duplicate raw signoff pair；
 - 全部Liberty/SPEF/SDC/config regular file；
 - work/report/feature配置与positive nonbool max_paths；
-- 完成全部sanitize/alias验证后，final frozen `tuple[StaSignoffRunItem,...]` 仍必须non-empty；
-- 空signoff outer、仅空dict group、空Liberty outer、被引用Liberty file list为空、空RC outer/list、零raw pair与空final run tuple均各自有独立失败路径，且全部在任何subflow/engine/discard前失败。
+- 输入容器的非空约束保证至少生成一项；完成全部sanitize/alias验证后返回 frozen `tuple[StaSignoffRunItem,...]`；
+- 空signoff outer、空dict group、空Liberty outer、被引用Liberty file list为空、空RC list在输入边界分别拒绝；删除上述约束之后不可达的零raw pair及空final tuple分支。全部验证仍在任何subflow/engine/discard前完成。
 - 先计算全部raw `artifact_corner` 与sanitize结果，再要求artifact_corner全局唯一；
 - 对每项 `report_dir.resolve(strict=False)`、`feature_dir.resolve(strict=False)` 做各自及cross-kind全局唯一，拒不同raw corner sanitize后碰撞（如 `A/B` vs `A_B`）和report/feature root alias；
 - artifact path只计算，不mkdir/discard，不构造 `EccSubFlow`，不改workspace/subflow内存态，不写JSON，不发monitor/event/log-side-effect telemetry；

@@ -130,3 +130,7 @@ ASan与UBSan在独立GCC 14树各强制重建并运行相同8项：6项pure算�
 Stage 7可在保持`ISTA_ENABLE_CUDA=OFF`默认CPU兼容的前提下，开始可选CUDA构建与GPU full baseline。它应复用Stage 2 CPU/full functional oracle、Stage 5 Dual语义和本阶段level/timing receipt边界；不得把CPU mixed实现冒充GPU执行，也不得跳过真实device、synchronization与逐字段CPU/GPU等价门。
 
 Stage 6 child已在`IncreGPUSTA`本地提交为`b8bfc3a79930b0be146ac26ca10dc0e99115f1fc`，未push。parent随后只提交本报告、详细计划与submodule pointer，不夹带用户已有修改。
+
+## 2026-09-05 第二轮清理同步
+
+mixed pipeline 统一通过 `runCpuIncrementalLevelization()` 自由函数调用，删除无状态静态类包装。确定性 trace 类型移至 mixed 模块并被运行遥测复用；transaction 仍只持久化确定性基类，计数恒等式只保留一份。耗时与 `legal_noncompact` 继续排除在持久化及恢复等价之外，JSON wire 不变。 验证与范围说明见[第二轮清理报告](stage0-stage6-second-cleanup-report.md)。
