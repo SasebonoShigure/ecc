@@ -1,5 +1,7 @@
 # ECC IncreGPUSTA 阶段 6 详细实施计划
 
+> 当前开发协议补充（开发检查分离）：mixed 的映射、indegree、容量和 cycle 分类始终运行，独立重建验证、详细访问计数与 full-levelizer 访问证明归 ON；按保存模式执行的恢复始终保留。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
+
 > 状态：v1.0 已完成；设计复审与最终全diff实现审查均APPROVE；详见[阶段 6 报告](stage6-report.md)
 > 前置与结果：Stage 5基线为`11ae6d767a4e7dc25b3504326fd7b383e1a711e5`；Stage 6 ecc-tools本地提交为`b8bfc3a79930b0be146ac26ca10dc0e99115f1fc`，未push
 > 范围：CPU mixed incremental levelization reference；继续使用 Stage 5 targeted Dual-CSR 和 full CPU propagation

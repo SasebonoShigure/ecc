@@ -124,6 +124,8 @@ class FakeNativeSession:
 
 
 class FakeNativeModule:
+    incregpusta_debug_checks_enabled = True
+
     StaSessionError = FakeNativeStaSessionError
 
     def __init__(self, *, factory_error=None, **session_kwargs):

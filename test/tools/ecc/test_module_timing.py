@@ -78,6 +78,8 @@ class FakeNativeStaSession:
 
 
 class FakeStaEcc:
+    incregpusta_debug_checks_enabled = True
+
     def __init__(self):
         self.calls = []
         self.session_requests = []

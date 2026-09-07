@@ -55,6 +55,9 @@ class _NativeStaSession(Protocol):
 
 
 class _NativeStaModule(Protocol):
+    @property
+    def incregpusta_debug_checks_enabled(self) -> bool: ...
+
     StaSessionError: type[Exception]
 
     def create_incremental_sta_session(self, request: Mapping[str, str]) -> _NativeStaSession: ...
@@ -202,6 +205,9 @@ class IncrementalStaSession:
         config_dict: Mapping[str, str] | None = None,
     ) -> None:
         self._native_module = native_module
+        self._debug_checks = native_module.incregpusta_debug_checks_enabled
+        if type(self._debug_checks) is not bool:
+            raise StaExecutionContractError("native IncreGPUSTA build flag must be a bool")
         self._request = request
         validate_sta_analysis_context(analysis_context)
         self._analysis_context = analysis_context
@@ -276,6 +282,8 @@ class IncrementalStaSession:
             raise StaExecutionContractError(
                 "native STA execution record differs from the stage-1 preflight outcome"
             )
+        if not self._debug_checks:
+            return record
         raw_observation = self._call_native(lambda: native_session.csr_snapshot_observation)
         observation = snapshot_observation_from_mapping(raw_observation)
         if self._request.update_strategy is StaUpdateStrategy.FULL:
@@ -317,6 +325,12 @@ class IncrementalStaSession:
                 return
 
             close_result = self._call_native(native_session.close)
+            if not self._debug_checks:
+                if close_result is not None:
+                    raise StaExecutionContractError(
+                        "native STA session close must return None on success"
+                    )
+                return
             released_error: BaseException | None = None
             released_observation: StaSnapshotObservation | None = None
             try:

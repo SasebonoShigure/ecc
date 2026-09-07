@@ -1,5 +1,7 @@
 # ECC IncreGPUSTA 阶段 2 详细实施计划
 
+> 当前开发协议补充（开发检查分离）：实际快照、scatter、失效身份与公共输入校验始终保留，已受控对象的重复扫描与深拷贝归 ON。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
+
 > 状态：实施中；步骤 1–8 已本地完成并通过最终门禁/代码复审，Step 9 v0.15 exact bytes已冻结并正在同一SHA双审
 > 实施进度：步骤 1–8 见 [stage2-report.md](stage2-report.md) 与各step计划；Step 8 v0.14见 [stage2-step8-plan.md](stage2-step8-plan.md)，SHA `604dd5427d2ba1003ff4e22ae0ab3e5760148331fd1fcebf1e33ae2d9c402be2`；Step 9 v0.15 review candidate见 [stage2-step9-plan.md](stage2-step9-plan.md)，SHA `c6aa9a71c942fc5f6a217c33d5649560b61018d4699723963d105b969c78c598`；v0.5 SHA `ff7b3e91fc3cca4ee6a0aec414650c2a3cc61afa92bd96bfc38dd21ae4224054` 仅为历史编码前基线
 > 已批准设计基线：总计划编码前复审 SHA-256 为 `052ae59be69c4ad097d716d279275d19b75940ca07567e481f565d95b9f7aa64`；Step 3 v0.4 为 `188d1184ec0e16f62339c484df515aed08fe5e722fc32fc1f308adcb44e2b050`；Step 5 v0.2为 `d8850b74cd6995f1f050efbda0e0ed08d2c930ace1163690a105995cdc15112b`；Step 6 v0.7为 `d36e4831626093b8a12813ac2053bdd0a6baae4b77c22ebefed2ecfd94804daa`；Step 7 v0.3为 `2996e2d8f558c7707290e7978fc9b6a1f0ce5f4ba680f201083b0829c5627313`；Step 8 v0.14为 `604dd5427d2ba1003ff4e22ae0ab3e5760148331fd1fcebf1e33ae2d9c402be2`

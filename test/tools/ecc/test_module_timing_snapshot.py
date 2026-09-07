@@ -25,6 +25,8 @@ def _request(backend=StaBackend.CPU):
 
 
 class _Native:
+    incregpusta_debug_checks_enabled = True
+
     def __init__(self, events):
         self.events = events
 

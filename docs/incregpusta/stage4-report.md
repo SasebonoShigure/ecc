@@ -1,5 +1,7 @@
 # 阶段 4 完成报告：确定性 buffer trace 与 one-shot fresh replay
 
+> 当前开发协议补充（开发检查分离）：保存的编辑记录、执行模式和 generation 继续用于真实恢复；完整 fresh oracle、逐字段 receipt 和故障注入归 ON。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
+
 > 状态：Stage 4 功能实现、独立复审与正确性验收完成；ecc-tools 已封存为 `eff4706f77a882d84317341f78e567ef5262b6d1`，parent 提交在本报告入库后创建，均不推送
 > 日期：2026-09-01
 > 基线：parent `8787d4b1a6743169a2ff4dcb4c173832577dbd8c`，ecc-tools `5877ba0671da77ee6a69ad9765f1d9c761923965`

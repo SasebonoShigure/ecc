@@ -1,5 +1,7 @@
 # ECC IncreGPUSTA 阶段 3 详细实施计划
 
+> 当前开发协议补充（开发检查分离）：CsrExecutionAuthorization 将受控提交授权与 full-exact 证明分开，OFF 无完整证明；generation、身份和原子提交/真实回滚始终检查。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
+
 > 状态：v1.0 as-built；独立计划审查与代码复审均通过，功能实现和 Stage 3 定向验收完成
 > 基线：parent `49f1bc99ed8a4126a6f4da2bfd3236cdb04df4e9`，ecc-tools `5609a3c932e7bcb6cfb2a2ee765f472e0615e395`
 > 分支：parent 与 ecc-tools 均为 `IncreGPUSTA`

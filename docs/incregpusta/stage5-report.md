@@ -1,5 +1,7 @@
 # 阶段 5 报告：CPU targeted Dual-CSR 与 direct-view full timing
 
+> 当前开发协议补充（开发检查分离）：重复 aggregate/index/resolver 验证、narrow capture 审计和 execution trace 全量 payload 归 ON；局部 descriptor 适用性、必要 active-edge 数量及发布身份始终保留。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
+
 > 状态：完成；功能实现、production runtime/controller differential、Release 1 warm-up + 6 raw timing smoke、GCC 14功能矩阵、parent pytest、ASan/UBSan核心边界检查及最终独立全diff审查均已闭合
 > 日期：2026-09-02
 > 基线：Stage 4 parent `ace28d79e19647c6f4866a339cc6faa7dca61fa9`，ecc-tools `eff4706f77a882d84317341f78e567ef5262b6d1`

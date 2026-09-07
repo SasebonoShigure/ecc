@@ -1,5 +1,7 @@
 # 阶段 0 报告：CPU full-STA 黄金基线与验证脚手架
 
+> 当前开发协议补充（开发检查分离）：baseline oracle 和完整 receipt 属于 ON 诊断；默认 baseline 的真实加载、运行与清理由 OFF 运行用例验收。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
+
 > 状态：本地完成；两名独立审查者最终均为 `APPROVE`
 > 日期：2026-08-19
 > 范围：阶段 0 只建立现有 CPU/full STA 的可重复 correctness oracle、测试/工件契约和后续 benchmark schema，不实现增量 STA、CUDA backend 或新的生产 STA 行为

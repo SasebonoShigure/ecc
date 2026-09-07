@@ -122,6 +122,8 @@ class _NativeSession:
 
 
 class _NativeModule:
+    incregpusta_debug_checks_enabled = True
+
     StaSessionError = _NeverNativeError
 
     def __init__(self, request, **session_kwargs):
@@ -337,3 +339,15 @@ def test_body_contract_error_identity_dominates_every_close_stage(
     assert native.session.close_calls == 1
     assert native.session.observation_reads == active_reads + (close_stage != "native")
     _assert_failed_session_terminal(session, native)
+
+
+@pytest.mark.parametrize("debug_checks", [False, True])
+def test_build_flag_controls_observation_collection(debug_checks):
+    request = _request(StaUpdateStrategy.INCREMENTAL)
+    native = _NativeModule(request)
+    native.incregpusta_debug_checks_enabled = debug_checks
+    with IncrementalStaSession(native, request, CONTEXT) as session:
+        session.run_full_baseline()
+    assert native.session.close_calls == 1
+    assert native.session.observation_reads == (2 if debug_checks else 0)
+    assert (session.snapshot_observation is not None) is debug_checks

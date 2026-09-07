@@ -1,5 +1,7 @@
 # ECC IncreGPUSTA 阶段 1 详细实施计划
 
+> 当前开发协议补充（开发检查分离）：保留生命周期与 session 所有权。诊断 observation 的生成、复制和 Python mapping 只在 ON 执行；OFF 不返回虚假的 observation。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
+
 > 状态：阶段 1 本地完成；设计 v1.0、parent/native 独立代码审查与正确性门均通过
 > 基线：parent `447e15517ab0af95e403a19956f215876fb08283`，ecc-tools `f1b1351a18d862b086de8b191f51ee5a1688638b`
 > 分支：parent 与 ecc-tools 均为 `IncreGPUSTA`

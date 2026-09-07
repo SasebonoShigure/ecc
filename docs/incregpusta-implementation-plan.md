@@ -1,10 +1,10 @@
 # ECC 中复现 IncreGPUSTA 的分阶段实施计划
 
-> 状态：`v1.9-stage0-6-function-first-cleanup-verified`；阶段 0–6 已完成功能实现、回归、独立审查和过度防御清理，Stage 7可开始，均未推送。阶段验收以结构、时序、生命周期、fresh replay和source unchanged逐字段一致为主；功能正确性优先，哈希与对象清单只作artifact/边界辅助，不扩张为无上限攻防。见[阶段 0 报告](incregpusta/stage0-report.md)、[阶段 1 报告](incregpusta/stage1-report.md)、[阶段 2 报告](incregpusta/stage2-report.md)、[阶段 3 报告](incregpusta/stage3-report.md)、[阶段 4 报告](incregpusta/stage4-report.md)、[阶段 5 报告](incregpusta/stage5-report.md)、[阶段 6 报告](incregpusta/stage6-report.md)和[阶段 0–6 过度防御清理报告](incregpusta/stage0-stage6-defense-cleanup-report.md)
+> 状态：`v2.0-debug-checks-separated`；Stage 0–6 已实现，当前将开发诊断与默认执行路径分离。本轮保留工作区差异供审阅，不 commit、不 push。阶段验收分为 OFF 功能回归与 ON 完整诊断；性能入口只使用 OFF。实现、检查分类、实际失败与验收结果见 [本轮实施报告](incregpusta/debug-checks-implementation-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。此前阶段报告继续保留其历史验收记录。
 > 文档范围：本计划及阶段说明仅适用于 `IncreGPUSTA`；相关文档维护在 `ecc/docs`，不修改仓库通用 README。
 > 目标仓库：`/home/shigure/code/ecc`
 > 强制开发分支：`IncreGPUSTA`
-> 日期：2026-08-19；最近更新：2026-09-03
+> 日期：2026-08-19；最近更新：2026-09-05
 
 ## 1. 目标、范围与结论
 
@@ -50,6 +50,7 @@ wsl.exe -d Ubuntu --cd /home/shigure/code -- pwd
 - `/home/shigure/code/ecc/AGENTS.md`，以及它所指向的 `CLAUDE.md`；
 - `/home/shigure/code/ecc/README.md`；
 - `/home/shigure/code/ecc/docs/review-guidelines.md`；
+- [IncreGPUSTA 开发检查规范](incregpusta/development-guidelines.md)；
 - 当前阶段涉及目录内更深层的 `AGENTS.md`，如存在。
 
 在任何修改前验证：
@@ -65,7 +66,11 @@ git -C /home/shigure/code/ecc submodule status --recursive
 
 若发现用户已有未提交修改，保留并绕开；不得 reset、checkout 或覆盖。任何阶段都不得擅自升级 submodule、CUDA、编译器或第三方依赖。
 
-### 2.2 每阶段固定闭环
+### 2.2 开发诊断与默认执行路径
+
+`ECC_INCREGPUSTA_DEBUG_CHECKS` 默认 OFF，与 CMake Debug/Release 独立。重型诊断、完整 oracle/fresh replay/逐字段比较仅 ON 使用；正式性能运行只使用 OFF，且不自动执行这些验证。必要输入/生命周期/算法错误检查和实际事务恢复始终保留。该规则取代旧阶段文档中将全量诊断嵌入默认运行或每个性能样本的要求；详见开发检查规范和本轮分类/实施报告。
+
+### 2.3 每阶段固定闭环
 
 每一阶段必须完整执行以下闭环：
 

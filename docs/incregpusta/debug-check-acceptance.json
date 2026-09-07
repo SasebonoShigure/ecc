@@ -1,0 +1,147 @@
+{
+  "schema_version": "incregpusta-debug-check-acceptance/1.0.0",
+  "date": "2026-09-05",
+  "builds": {
+    "off": {
+      "build_config": "Release",
+      "compiler_id": "GNU",
+      "compiler_version": "14.3.0",
+      "debug_checks_enabled": false
+    },
+    "on": {
+      "build_config": "Release",
+      "compiler_id": "GNU",
+      "compiler_version": "14.3.0",
+      "debug_checks_enabled": true
+    }
+  },
+  "call_profile": {
+    "off": {
+      "calls": {
+        "targeted_update": 4,
+        "aggregate_validation": 1,
+        "full_exact_receipt": 0,
+        "source_snapshot": 0,
+        "full_levelizer_window": 0,
+        "native_full_validation": 0
+      },
+      "pending_symbols": [
+        "full_exact_receipt",
+        "full_levelizer_window",
+        "native_full_validation"
+      ]
+    },
+    "on": {
+      "calls": {
+        "targeted_update": 4,
+        "aggregate_validation": 13,
+        "full_exact_receipt": 1,
+        "source_snapshot": 2,
+        "full_levelizer_window": 2,
+        "native_full_validation": 2
+      },
+      "pending_symbols": []
+    }
+  },
+  "performance": {
+    "dual_csr": {
+      "schema_version": "ista-dual-csr-timing-smoke/2.0.0",
+      "debug_checks_enabled": false,
+      "correctness_comparison": "not_run",
+      "warmup_runs": 1,
+      "raw_sample_count": 6,
+      "input": {
+        "arc_slots": 5,
+        "batches": 2,
+        "node_slots": 6
+      },
+      "requested_mode": "full-stage5",
+      "executed_mode": "full-stage5",
+      "result": {
+        "arc_slots": 14,
+        "fallback_count": 0,
+        "generation": 2,
+        "native_final_rollback_completed": true,
+        "node_slots": 12
+      },
+      "raw_sample_artifact": "chipcompiler/thirdparty/ecc-tools/build-incregpusta-off/src/operation/iSTA/test/dual_csr-timing-smoke/timing-smoke.json"
+    },
+    "stage6": {
+      "schema_version": "ista-dual-csr-timing-smoke/2.0.0",
+      "debug_checks_enabled": false,
+      "correctness_comparison": "not_run",
+      "warmup_runs": 1,
+      "raw_sample_count": 6,
+      "input": {
+        "arc_slots": 5,
+        "batches": 2,
+        "node_slots": 6
+      },
+      "requested_mode": "mixed-stage6",
+      "executed_mode": "mixed-stage6",
+      "result": {
+        "arc_slots": 14,
+        "fallback_count": 0,
+        "generation": 2,
+        "native_final_rollback_completed": true,
+        "node_slots": 12
+      },
+      "raw_sample_artifact": "chipcompiler/thirdparty/ecc-tools/build-incregpusta-off/src/operation/iSTA/test/stage6-timing-smoke/timing-smoke.json"
+    }
+  },
+  "cross_build": {
+    "exact_functional_equality": true,
+    "projections": [
+      "after_continuation",
+      "after_two_batch_replay",
+      "before_recovery",
+      "generation"
+    ],
+    "generation": 2
+  },
+  "bindings": [
+    {
+      "binding": "/home/shigure/code/ecc/chipcompiler/thirdparty/ecc-tools/build-ista-stage34/binding/ecc_py.cpython-311-x86_64-linux-gnu.so",
+      "debug_checks_enabled": true,
+      "readonly": true,
+      "native_agrees": true
+    },
+    {
+      "binding": "/home/shigure/code/ecc/chipcompiler/thirdparty/ecc-tools/build-incregpusta-off/binding/ecc_py.cpython-311-x86_64-linux-gnu.so",
+      "debug_checks_enabled": false,
+      "readonly": true,
+      "native_agrees": true
+    }
+  ],
+  "native_tests": {
+    "off": {
+      "full": {
+        "executed": 140,
+        "failed": 0,
+        "disabled": 28
+      },
+      "post_review_affected": {
+        "executed": 25,
+        "failed": 0,
+        "disabled": 9
+      }
+    },
+    "on": {
+      "full": {
+        "executed": 168,
+        "failed": 0,
+        "disabled": 0
+      },
+      "post_review_affected": {
+        "executed": 34,
+        "failed": 0,
+        "disabled": 0
+      }
+    }
+  },
+  "parent_tests": "1667 passed, 8 skipped, 4 deselected, 13 xfailed, 2 warnings in 34.87s",
+  "type_check": {
+    "modified_session_module": "passed",
+    "whole_repository": "failed: 2146 diagnostics; unrelated modules not repaired in this scope"
+  }
+}

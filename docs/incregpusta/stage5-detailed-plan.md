@@ -1,5 +1,7 @@
 # ECC IncreGPUSTA 阶段 5 详细实施计划
 
+> 当前开发协议补充（开发检查分离）：重复 aggregate/index/resolver 验证、narrow capture 审计和 execution trace 全量 payload 归 ON；局部 descriptor 适用性、必要 active-edge 数量及发布身份始终保留。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
+
 > 状态：v1.0 as-built冻结；Stage 5功能实现、回归、报告与最终独立审查均已完成
 > 基线：Stage 4 完成本地提交 parent `ace28d79e19647c6f4866a339cc6faa7dca61fa9`，ecc-tools `eff4706f77a882d84317341f78e567ef5262b6d1`
 > 完成提交：ecc-tools child `11ae6d767a4e7dc25b3504326fd7b383e1a711e5`；parent由本计划、报告和submodule pointer所在的本地提交承载；均不push

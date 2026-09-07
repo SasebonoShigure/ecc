@@ -1,5 +1,7 @@
 # 阶段 3 完成报告：结构编辑事务与 fresh CPU/full oracle
 
+> 当前开发协议补充（开发检查分离）：CsrExecutionAuthorization 将受控提交授权与 full-exact 证明分开，OFF 无完整证明；generation、身份和原子提交/真实回滚始终检查。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
+
 > 状态：Stage 3 功能实现、独立复审与定向验收完成；本地 child/parent 提交待按阶段边界封存
 > 日期：2026-08-31
 > 基线：parent `49f1bc99ed8a4126a6f4da2bfd3236cdb04df4e9`，ecc-tools `5609a3c932e7bcb6cfb2a2ee765f472e0615e395`
