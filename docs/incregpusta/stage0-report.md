@@ -1,5 +1,7 @@
 # 阶段 0 报告：CPU full-STA 黄金基线与验证脚手架
 
+> 2026-09-08 冗余清理：旧输入 replay seam 复用同一 CPU propagation；公开输入和注入 replay 校验保留。 详见 [清理报告](stage0-6-redundancy-cleanup-report.md)；以下阶段验收数据继续表示历史结果。
+
 > 当前开发协议补充（开发检查分离）：baseline oracle 和完整 receipt 属于 ON 诊断；默认 baseline 的真实加载、运行与清理由 OFF 运行用例验收。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
 
 > 状态：本地完成；两名独立审查者最终均为 `APPROVE`

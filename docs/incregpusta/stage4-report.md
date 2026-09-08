@@ -1,5 +1,7 @@
 # 阶段 4 完成报告：确定性 buffer trace 与 one-shot fresh replay
 
+> 2026-09-08 冗余清理：共享诊断机械编码，保留独立 targeted/fresh 计算。 详见 [清理报告](stage0-6-redundancy-cleanup-report.md)；以下阶段验收数据继续表示历史结果。
+
 > 当前开发协议补充（开发检查分离）：保存的编辑记录、执行模式和 generation 继续用于真实恢复；完整 fresh oracle、逐字段 receipt 和故障注入归 ON。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
 
 > 状态：Stage 4 功能实现、独立复审与正确性验收完成；ecc-tools 已封存为 `eff4706f77a882d84317341f78e567ef5262b6d1`，parent 提交在本报告入库后创建，均不推送

@@ -1,5 +1,7 @@
 # ECC IncreGPUSTA 阶段 4 详细实施计划
 
+> 2026-09-08 冗余清理：共享诊断机械编码，保留独立 targeted/fresh 计算。 详见 [清理报告](stage0-6-redundancy-cleanup-report.md)；以下阶段验收数据继续表示历史结果。
+
 > 当前开发协议补充（开发检查分离）：保存的编辑记录、执行模式和 generation 继续用于真实恢复；完整 fresh oracle、逐字段 receipt 和故障注入归 ON。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
 
 > 状态：实现、独立审查与正确性验收完成 v1.0；Stage 3 contract/native transaction/fresh oracle保持冻结，Stage 4以功能逐字段一致、one-shot fresh replay与source unchanged完成收口

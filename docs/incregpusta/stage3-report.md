@@ -1,5 +1,7 @@
 # 阶段 3 完成报告：结构编辑事务与 fresh CPU/full oracle
 
+> 2026-09-08 冗余清理：共享测试层语义 JSON 编码；实际提交授权、独立 oracle 和回滚保留。 详见 [清理报告](stage0-6-redundancy-cleanup-report.md)；以下阶段验收数据继续表示历史结果。
+
 > 当前开发协议补充（开发检查分离）：CsrExecutionAuthorization 将受控提交授权与 full-exact 证明分开，OFF 无完整证明；generation、身份和原子提交/真实回滚始终检查。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
 
 > 状态：Stage 3 功能实现、独立复审与定向验收完成；本地 child/parent 提交待按阶段边界封存

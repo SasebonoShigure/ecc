@@ -1,5 +1,7 @@
 # ECC IncreGPUSTA 阶段 3 详细实施计划
 
+> 2026-09-08 冗余清理：共享测试层语义 JSON 编码；实际提交授权、独立 oracle 和回滚保留。 详见 [清理报告](stage0-6-redundancy-cleanup-report.md)；以下阶段验收数据继续表示历史结果。
+
 > 当前开发协议补充（开发检查分离）：CsrExecutionAuthorization 将受控提交授权与 full-exact 证明分开，OFF 无完整证明；generation、身份和原子提交/真实回滚始终检查。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
 
 > 状态：v1.0 as-built；独立计划审查与代码复审均通过，功能实现和 Stage 3 定向验收完成

@@ -1,5 +1,7 @@
 # 阶段 6 报告：CPU mixed incremental levelization reference
 
+> 2026-09-08 冗余清理：恢复结果转移所有权，诊断计数退出授权；Stage 6 单份 graph/timing 的 process/verdict 升级 v2，保留独立 oracle 和 level 合法性。 详见 [清理报告](stage0-6-redundancy-cleanup-report.md)；以下阶段验收数据继续表示历史结果。
+
 > 当前开发协议补充（开发检查分离）：mixed 的映射、indegree、容量和 cycle 分类始终运行，独立重建验证、详细访问计数与 full-levelizer 访问证明归 ON；按保存模式执行的恢复始终保留。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
 
 > 状态：完成；功能实现、production/fresh differential、typed recovery、active-payload边界、相关回归、ASan/UBSan及最终独立全diff审查均已闭合

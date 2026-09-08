@@ -1,5 +1,7 @@
 # ECC IncreGPUSTA 阶段 5 详细实施计划
 
+> 2026-09-08 冗余清理：删除遗留 recovery 链与重复 factory/publish 校验；OFF 性能入口只读 native 构建信息；ON 诊断使用现有 controller。 详见 [清理报告](stage0-6-redundancy-cleanup-report.md)；以下阶段验收数据继续表示历史结果。
+
 > 当前开发协议补充（开发检查分离）：重复 aggregate/index/resolver 验证、narrow capture 审计和 execution trace 全量 payload 归 ON；局部 descriptor 适用性、必要 active-edge 数量及发布身份始终保留。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
 
 > 状态：v1.0 as-built冻结；Stage 5功能实现、回归、报告与最终独立审查均已完成

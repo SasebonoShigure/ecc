@@ -1,0 +1,278 @@
+{
+  "schema": "ista-stage0-6-cleanup-acceptance/1.0.0",
+  "date": "2026-09-08",
+  "base": {
+    "ecc": "dfa7142",
+    "ecc-tools": "5d0bf7ad7"
+  },
+  "build": {
+    "compiler": "GCC 14.3.0",
+    "configuration": "Release",
+    "release_flags": "-O3 -DNDEBUG",
+    "off": "build-incregpusta-off",
+    "on": "build-ista-stage34",
+    "strict_native_targets_built": 93
+  },
+  "tests": {
+    "native_off": {
+      "passed": 140,
+      "diagnostic_disabled": 28,
+      "failed": 0
+    },
+    "native_on": {
+      "passed": 168,
+      "failed": 0
+    },
+    "parent_non_pdk": {
+      "passed": 1669,
+      "skipped": 6,
+      "deselected": 4,
+      "xfailed": 13
+    },
+    "parent_focused_after_binding": {
+      "passed": 497
+    },
+    "performance_behavior_tests": 3,
+    "ruff": "passed",
+    "ty_focused": {
+      "diagnostics": 54,
+      "baseline_diagnostics": 60,
+      "new_diagnostics": [],
+      "comparison_method": "file, function, diagnostic category and message; not fixed counts"
+    },
+    "ty_all": {
+      "passed": false,
+      "diagnostics": 2139
+    }
+  },
+  "binding": {
+    "debug_checks_enabled": false,
+    "readonly": true,
+    "module": "/home/shigure/code/ecc/chipcompiler/thirdparty/ecc-tools/bin/ecc_py.cpython-311-x86_64-linux-gnu.so"
+  },
+  "functional": {
+    "off_on_equal": true,
+    "before_after_equal": true,
+    "projection_keys": [
+      "after_continuation",
+      "after_two_batch_replay",
+      "before_recovery",
+      "generation"
+    ]
+  },
+  "call_profiles": {
+    "off": {
+      "before": {
+        "targeted": {
+          "calls": {
+            "aggregate_validation": 1,
+            "level_validation": 3,
+            "resolver_copy": 0,
+            "aggregate_copy": 0
+          },
+          "pending": [
+            "resolver_copy",
+            "aggregate_copy"
+          ],
+          "raw_artifact": "/home/shigure/code/ecc/chipcompiler/thirdparty/ecc-tools/build-incregpusta-off/cleanup-profile/before/targeted/calls.json"
+        },
+        "recovery": {
+          "calls": {
+            "aggregate_validation": 14,
+            "level_validation": 11,
+            "resolver_copy": 10,
+            "aggregate_copy": 6
+          },
+          "pending": [],
+          "raw_artifact": "/home/shigure/code/ecc/chipcompiler/thirdparty/ecc-tools/build-incregpusta-off/cleanup-profile/before/recovery/calls.json"
+        }
+      },
+      "after": {
+        "targeted": {
+          "calls": {
+            "aggregate_validation": 1,
+            "level_validation": 1,
+            "resolver_copy": 0,
+            "aggregate_copy": 0
+          },
+          "pending": [
+            "resolver_copy",
+            "aggregate_copy"
+          ],
+          "raw_artifact": "/home/shigure/code/ecc/chipcompiler/thirdparty/ecc-tools/build-incregpusta-off/cleanup-profile/after/targeted/calls.json"
+        },
+        "recovery": {
+          "calls": {
+            "aggregate_validation": 20,
+            "level_validation": 4,
+            "resolver_copy": 10,
+            "aggregate_copy": 6
+          },
+          "pending": [],
+          "raw_artifact": "/home/shigure/code/ecc/chipcompiler/thirdparty/ecc-tools/build-incregpusta-off/cleanup-profile/after/recovery/calls.json"
+        }
+      }
+    },
+    "on": {
+      "before": {
+        "targeted": {
+          "calls": {
+            "aggregate_validation": 13,
+            "level_validation": 7,
+            "resolver_copy": 0,
+            "aggregate_copy": 0
+          },
+          "pending": [
+            "resolver_copy"
+          ],
+          "raw_artifact": "/home/shigure/code/ecc/chipcompiler/thirdparty/ecc-tools/build-ista-stage34/cleanup-profile/before/targeted/calls.json"
+        },
+        "recovery": {
+          "calls": {
+            "aggregate_validation": 46,
+            "level_validation": 23,
+            "resolver_copy": 14,
+            "aggregate_copy": 10
+          },
+          "pending": [],
+          "raw_artifact": "/home/shigure/code/ecc/chipcompiler/thirdparty/ecc-tools/build-ista-stage34/cleanup-profile/before/recovery/calls.json"
+        }
+      },
+      "after": {
+        "targeted": {
+          "calls": {
+            "aggregate_validation": 9,
+            "level_validation": 3,
+            "resolver_copy": 0,
+            "aggregate_copy": 0
+          },
+          "pending": [
+            "resolver_copy",
+            "aggregate_copy"
+          ],
+          "raw_artifact": "/home/shigure/code/ecc/chipcompiler/thirdparty/ecc-tools/build-ista-stage34/cleanup-profile/after/targeted/calls.json"
+        },
+        "recovery": {
+          "calls": {
+            "aggregate_validation": 42,
+            "level_validation": 11,
+            "resolver_copy": 16,
+            "aggregate_copy": 12
+          },
+          "pending": [],
+          "raw_artifact": "/home/shigure/code/ecc/chipcompiler/thirdparty/ecc-tools/build-ista-stage34/cleanup-profile/after/recovery/calls.json"
+        }
+      }
+    }
+  },
+  "binding_allocation": {
+    "method": "isolated real ExpectedBeforeBinding constructor, same compile flags and generated config; access control exposed only in temporary probe; allocation count covers constructor call only",
+    "results": [
+      {
+        "debug_checks_enabled": false,
+        "resolver_entries": 1,
+        "identity_records": 1,
+        "construction_allocations": 0,
+        "construction_allocated_bytes": 0,
+        "resolver_present": false,
+        "identity_present": false,
+        "independent_deep_copy": false
+      },
+      {
+        "debug_checks_enabled": false,
+        "resolver_entries": 32,
+        "identity_records": 32,
+        "construction_allocations": 0,
+        "construction_allocated_bytes": 0,
+        "resolver_present": false,
+        "identity_present": false,
+        "independent_deep_copy": false
+      },
+      {
+        "debug_checks_enabled": false,
+        "resolver_entries": 128,
+        "identity_records": 128,
+        "construction_allocations": 0,
+        "construction_allocated_bytes": 0,
+        "resolver_present": false,
+        "identity_present": false,
+        "independent_deep_copy": false
+      },
+      {
+        "debug_checks_enabled": true,
+        "resolver_entries": 1,
+        "identity_records": 1,
+        "construction_allocations": 6,
+        "construction_allocated_bytes": 5095,
+        "resolver_present": true,
+        "identity_present": true,
+        "independent_deep_copy": true
+      },
+      {
+        "debug_checks_enabled": true,
+        "resolver_entries": 32,
+        "identity_records": 32,
+        "construction_allocations": 130,
+        "construction_allocated_bytes": 36099,
+        "resolver_present": true,
+        "identity_present": true,
+        "independent_deep_copy": true
+      },
+      {
+        "debug_checks_enabled": true,
+        "resolver_entries": 128,
+        "identity_records": 128,
+        "construction_allocations": 514,
+        "construction_allocated_bytes": 132279,
+        "resolver_present": true,
+        "identity_present": true,
+        "independent_deep_copy": true
+      }
+    ]
+  },
+  "performance": {
+    "dual_csr": {
+      "raw_sample_count": 6,
+      "warmup_runs": 1,
+      "debug_checks_enabled": false,
+      "correctness_comparison": "not_run",
+      "build": {
+        "build_config": "Release",
+        "compiler_id": "GNU",
+        "compiler_version": "14.3.0",
+        "debug_checks_enabled": false
+      },
+      "raw_artifact": "/home/shigure/code/ecc/chipcompiler/thirdparty/ecc-tools/build-incregpusta-off/src/operation/iSTA/test/dual_csr-timing-smoke/timing-smoke.json"
+    },
+    "stage6": {
+      "raw_sample_count": 6,
+      "warmup_runs": 1,
+      "debug_checks_enabled": false,
+      "correctness_comparison": "not_run",
+      "build": {
+        "build_config": "Release",
+        "compiler_id": "GNU",
+        "compiler_version": "14.3.0",
+        "debug_checks_enabled": false
+      },
+      "raw_artifact": "/home/shigure/code/ecc/chipcompiler/thirdparty/ecc-tools/build-incregpusta-off/src/operation/iSTA/test/stage6-timing-smoke/timing-smoke.json"
+    }
+  },
+  "protected_file_sha256": {
+    "CLAUDE.md": "364f7a9365af1e2995be1fbe635928137e7d75d2213609c63cfb476b51f40c40",
+    "docs/incregpusta/stage1-stage2-meeting-report.md": "a14d9c0ee4916d3c7ea86f69bf52253c1a2cbd5954db991358a2db883aa5a138",
+    "docs/incregpusta/stage3-6-detailed-report.md": "fd2ac19fca3ae030eb821120c42a543464470109d8c51aa5717f7e0bea995737",
+    "docs/incregpusta/stage3-6-plain-language-report.md": "f8452c79dfdabcaa2f0cbec45da55048071f11df0801e0a41fb48e684629cdae"
+  },
+  "files_crossing_700_lines": [],
+  "support_artifacts": "/home/shigure/code/ecc/chipcompiler/thirdparty/ecc-tools/build-incregpusta-off/cleanup-profile/support",
+  "failures_and_fixes": [
+    "First OFF run: 137 passed, 3 failed due to omitted before alias consumer reading diagnostic optionals; fixed requirePlanBinding split and added wrong-generation state-preservation case.",
+    "First ON run: 167 passed, 1 failed because malformed-generation diagnostic moved to capability boundary; updated origin while preserving rejection and state equality.",
+    "First static review missed before alias consumer; repeated accessor/alias audit after runtime failure.",
+    "Whole type check remains failed (2139); five changed files 54 diagnostics map to baseline, zero new.",
+    "Read-only log command automatic approval timed out; one retry succeeded, no action was executed by the timed-out call."
+  ],
+  "commit": false,
+  "push": false
+}

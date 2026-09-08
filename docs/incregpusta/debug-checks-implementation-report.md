@@ -1,5 +1,7 @@
 # IncreGPUSTA 开发检查分离实施报告
 
+> 历史报告（2026-09-05）：其改动已于 2026-09-07 本地提交。后续 2026-09-08 清理删除旧 ON timing smoke 等冗余，当前入口与验收见 [冗余清理报告](stage0-6-redundancy-cleanup-report.md)；以下保留当时结果。
+
 日期：2026-09-05。Stage 0–6 的开发检查分离已实施，保留未提交的工作区差异供审阅。本轮不 commit、不 push，不修改通用 README、用户 CLAUDE.md 修改及用户报告，也未升级项目依赖。
 
 开发规则见 [开发检查规范](development-guidelines.md)，调用分类和复杂度见 [检查分类](debug-check-classification.md)，机器可读实测记录见 [验收证据](debug-check-acceptance.json)。总计划位于 `ecc/docs/incregpusta-implementation-plan.md`，已加入必读规范；Stage 0–6 主计划/报告已补充当前协议，历史验收数字没有改写成本轮结果。

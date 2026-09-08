@@ -1,10 +1,10 @@
 # ECC 中复现 IncreGPUSTA 的分阶段实施计划
 
-> 状态：`v2.0-debug-checks-separated`；Stage 0–6 已实现，当前将开发诊断与默认执行路径分离。本轮保留工作区差异供审阅，不 commit、不 push。阶段验收分为 OFF 功能回归与 ON 完整诊断；性能入口只使用 OFF。实现、检查分类、实际失败与验收结果见 [本轮实施报告](incregpusta/debug-checks-implementation-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。此前阶段报告继续保留其历史验收记录。
+> 状态：`v2.1-redundancy-cleanup`；Stage 0–6 与默认 OFF 开发诊断分离已实现（ecc `dfa7142`，ecc-tools `5d0bf7ad7`）。本轮进一步删除旧恢复链、诊断副本与同源重复证明，保留工作区差异，不 commit、不 push。当前改造和验收见 [冗余清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md)，后续改动遵循 [开发检查规范](incregpusta/development-guidelines.md)。原阶段及诊断分离报告保留历史记录。
 > 文档范围：本计划及阶段说明仅适用于 `IncreGPUSTA`；相关文档维护在 `ecc/docs`，不修改仓库通用 README。
 > 目标仓库：`/home/shigure/code/ecc`
 > 强制开发分支：`IncreGPUSTA`
-> 日期：2026-08-19；最近更新：2026-09-05
+> 日期：2026-08-19；最近更新：2026-09-08
 
 ## 1. 目标、范围与结论
 

@@ -1,5 +1,7 @@
 # ECC IncreGPUSTA 阶段 2 详细实施计划
 
+> 2026-09-08 冗余清理：受控 levels 的完整证明归属生成路径；任意外部 levels 仍完整验证。 详见 [清理报告](stage0-6-redundancy-cleanup-report.md)；以下阶段验收数据继续表示历史结果。
+
 > 当前开发协议补充（开发检查分离）：实际快照、scatter、失效身份与公共输入校验始终保留，已受控对象的重复扫描与深拷贝归 ON。 后续改动必读 [开发检查规范](development-guidelines.md)，双模式实测与历史验收的区别见 [本轮实施报告](debug-checks-implementation-report.md)。原阶段验收数字保留为历史记录。
 
 > 状态：实施中；步骤 1–8 已本地完成并通过最终门禁/代码复审，Step 9 v0.15 exact bytes已冻结并正在同一SHA双审
