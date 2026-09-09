@@ -55,6 +55,7 @@ class StaFallbackReason(str, Enum):
     SEQUENTIAL_EDIT_UNSUPPORTED = "sequential_edit_unsupported"
     BACKEND_UNAVAILABLE = "backend_unavailable"
     CONTRACT_VIOLATION = "contract_violation"
+    OLD_LEVEL_ORDER_CONFLICT = "old_level_order_conflict"
 
 
 class StaCapabilityReason(str, Enum):

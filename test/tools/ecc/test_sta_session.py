@@ -557,3 +557,34 @@ def test_cuda_preflight_rejects_mismatched_or_invalid_native_records(raw_record)
     )
     with pytest.raises(StaExecutionContractError):
         preflight_sta_request(_cuda_request(), native)
+
+
+@pytest.mark.parametrize("debug_checks", [False, True])
+def test_cuda_incremental_baseline_uses_native_record_without_cpu_snapshot(debug_checks):
+    cpu_request = _request(StaUpdateStrategy.INCREMENTAL)
+    request = replace(cpu_request, backend=StaBackend.CUDA)
+    raw_record = {
+        **_record_mapping(cpu_request),
+        "requested_backend": "cuda",
+        "executed_backend": "cuda",
+    }
+    native_session = FakeNativeSession(request)
+    native_session.run_full_baseline = Mock(return_value=raw_record)
+    native = SimpleNamespace(
+        incregpusta_debug_checks_enabled=debug_checks,
+        StaSessionError=FakeNativeStaSessionError,
+        resolve_sta_execution=Mock(return_value=raw_record),
+        create_incremental_sta_session=Mock(return_value=native_session),
+    )
+    with IncrementalStaSession(native, request, _CONTEXT) as session:
+        result = session.run_full_baseline()
+        assert session.snapshot_observation is None
+    assert result == replace(
+        preflight_stage1_request(cpu_request),
+        requested_backend=StaBackend.CUDA,
+        executed_backend=StaBackend.CUDA,
+    )
+    native.resolve_sta_execution.assert_called_once_with(
+        {"backend": "cuda", "update_strategy": "incremental", "fallback_policy": "error"}
+    )
+    assert native_session.calls == [("initialize", "", {}), ("close",)]

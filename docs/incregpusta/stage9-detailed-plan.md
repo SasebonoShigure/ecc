@@ -1,6 +1,6 @@
 # Stage 9：Hybrid levelization 与端到端 CUDA incremental
 
-状态：2026-09-09 分析后的设计草案，独立设计审查要求修改，尚未通过；待修订项见进度报告。目标依照总计划阶段 9，不缩减为 compile-only 或只开放 capability；完成真实 GPU fixed trace、错误恢复及 ON/OFF 验收前不标完成。用户随后授权提交当前文档草案；不 push，保留用户 CLAUDE 和四份既有未跟踪报告。
+状态：2026-09-09 分析后的设计草案，独立设计二轮复审已通过，开始实施；阶段仍未验收。目标依照总计划阶段 9，不缩减为 compile-only 或只开放 capability；完成真实 GPU fixed trace、错误恢复及 ON/OFF 验收前不标完成。用户随后授权提交当前文档草案；不 push，保留用户 CLAUDE 和四份既有未跟踪报告。
 
 ## 1. 当前边界与复用
 
@@ -12,9 +12,9 @@ Stage 9 沿用 native 局部 descriptor、D2D 事务隔离和 full GPU propagati
 
 现有 mixed builder 只实际消费 active arc 的 source/sink/levelization eligibility，却要求完整 ArcSemanticPayload。不能为了这个接口构造假 payload、复制全部 Liberty 表或重新建立 CPU Dual-CSR。
 
-将 canonical mixed builder 的一次 edge traversal 提取为内部共同实现，使用明确的 topology edge（stable source/sink、storage kind）和窄访问回调；既有 ActiveCsrEdgeView 公共入口继续解析真实 arc 再调用同一算法。新增 GPU 内部入口从 CudaDualCsrSession 已有 endpoint bindings 读取并只补维护 levelization eligibility。该 metadata 由初始 pack 和 patch 更新，既不是 Base physical slot 镜像也不含 timing payload；每批遍历 O(E) 是 CPU mixed graph 本身成本，计入 mixed_build_ms。
+将 canonical mixed builder 的一次 edge traversal 提取为内部共同实现，使用明确的 topology edge（stable source/sink、storage kind）和窄访问回调；既有 ActiveCsrEdgeView 公共入口继续解析真实 arc 再调用同一算法。新增 GPU 内部入口从 CudaDualCsrSession 已有 endpoint bindings 读取，补维护 levelization eligibility 和实际 forward storage kind。初始 packed CSR 的 binding 为 BaseOut；patch 完成逻辑 append 后，按 changes 的 replacement、appended_base_out_rows 标 BaseOut，再按 aux_rows 的 replacement 标 AuxOut；未移动 active arc 保留归属，deactivation 不参与遍历。必要 incidence 检查已保证每个 active arc 的唯一最终 outgoing 位置，因此不需要保存 physical slots 或 Aux arc 数组副本。ActualDagCycleClassifier 同样复用这个窄遍历入口，失败路径不构造 payload。该 metadata 由初始 pack 和 patch 更新，既不是 Base physical slot 镜像也不含 timing payload；每批遍历 O(E) 是 CPU mixed graph 本身成本，计入 mixed_build_ms。
 
-公共任意 previous levels/edge 输入仍完整验证。受控 device owner 的上一代 levels 由成功 GPU 计算产生，内部路径保留 session/generation/high-water、容器尺寸/范围检查，重复全 permutation/inverse proof 只 ON，不新增公开 skip_validation 参数或 verified token。混合图映射、去重和 corrected Kahn 完全复用 Stage 6，canonical CPU pipeline 语义与回归不变。
+公共任意 previous levels/edge 输入仍完整验证。受控 device owner 的上一代 levels 由成功 GPU 计算产生，内部路径保留 session/generation/high-water、容器尺寸/范围检查，重复全 permutation/inverse proof 只 ON，不新增公开 skip_validation 参数或 verified token。混合图映射、去重和 corrected Kahn 完全复用 Stage 6，canonical CPU pipeline 语义与回归不变。公共 Kahn 入口对任意 graph 完整验证后调用内部算法；受控 builder→Kahn 直接进入该内部算法，graph 完整 proof 仅归属于 builder 的 ON 位置，result 完整 proof 仅归属于 Kahn 生成结束的 ON 位置。内部入口置于模块 detail 头，不增加公开 skip 参数或 token。processed count、indegree underflow、访问中的 mapping/range、容器尺寸及 cycle 检查始终执行。
 
 ## 3. GPU level reconstruction
 
@@ -26,6 +26,8 @@ Stage 9 沿用 native 局部 descriptor、D2D 事务隔离和 full GPU propagati
 - 新 nodes 和其 destination positions 一次批量 H2D，独立 kernel 写入 order。
 - 上传新的 level offsets，node2level kernel 为重建 order 写逆映射；检查 node/range/completion，保留 patch 原有失败 status，不清除真实 patch 错误。
 - 同一 CUDA stream 依序完成 patch、level D2D/H2D、node2level 后 full forward/backward propagation；输出 timing_order 来自重建顺序。
+
+计时在 update 结束记录 event 2，随后 CPU mixed build/Kahn 使用 host clock；CPU 工作结束后单独记录 reconstruction 起点，再提交 D2D/H2D/kernel。GPU levelization/reconstruction 时长不包含 CPU idle 间隔，CPU 两段和端到端耗时单独报告。
 
 复用 Impl::execute 的 seed reset、propagation、download、status 和 poison，拆出 full 与 mixed 的 levelization 小函数，避免另一套 propagation 编排。ON 独立用 Stage 6 CPU reconstruction oracle 比较完整 GPU levels，并做 level invariants；OFF 不执行 CPU reconstruction/完整 level proof。
 
@@ -49,6 +51,7 @@ CudaTargetedTraceReplayer 增加明确 update strategy 参数（既有调用默�
 
 - CPU mixed canonical 回归：实际 old/new 类型、parallel/proxy alias、空图/空批、old-old/order conflict、cycle 和 malformed previous；既有 CPU 算法结果不得回归。
 - GPU reconstruction：old block D2D、新 node batched H2D、node2level 真实执行；空/zero、新 node 与 old marker 同 frontier、多 old levels、连续批次、capacity、错误边界。ON 全 levels 对 canonical CPU reconstruction。
+- fallback 三例：同一 DAG old-level-order conflict 在 Error 下拒绝且不发布；FullWithRecord 下实际 full GPU levelization 成功并明确记录；actual cycle 即使 FullWithRecord 仍失败且不发布。
 - 实际 Base/Aux 与 timing：Stage 8 自然 overflow microcase 在 mixed 路径继续消费 Aux，seed reset、cycle/数值失败、stale/owner、实际 CUDA fault/poison/rollback及健康重放。
 - 生产 synthetic_two_batch、real_buffer_fanout 每 batch 对 fresh CPU/full 和 CUDA/full 所有 timing fields；目标 batch fallback_to_full=false，actual record为incremental_update/full_graph。
 - 独立 Release ON/OFF，相同 GCC/依赖/GPU；同输入实际 device topology、levels、timing 和 mode 跨构建比较，排除诊断/计时/实例身份。跨构建读回仅测试程序，不增加生产 debug runtime switch。

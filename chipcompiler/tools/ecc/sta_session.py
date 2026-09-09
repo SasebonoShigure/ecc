@@ -322,10 +322,13 @@ class IncrementalStaSession:
             return record
         raw_observation = self._call_native(lambda: native_session.csr_snapshot_observation)
         observation = snapshot_observation_from_mapping(raw_observation)
-        if self._request.update_strategy is StaUpdateStrategy.FULL:
+        if (
+            self._request.backend is StaBackend.CUDA
+            or self._request.update_strategy is StaUpdateStrategy.FULL
+        ):
             if observation is not None:
                 raise StaExecutionContractError(
-                    "full native STA session must not expose a snapshot observation"
+                    "this native STA mode must not expose a CPU snapshot observation"
                 )
         else:
             if observation is None:
