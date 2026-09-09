@@ -33,3 +33,21 @@ Factory 在构造只读 verified stage 前执行最终 ON aggregate proof；publ
 ON 使用现有 `dual_csr_trace_controller.py` 或 `incremental_levelization_controller.py`，以 `--probe <ON probe> --trace <trace> --run-root <existing directory> --timeout-seconds 900` 保存独立 targeted/fresh 结果和日志。旧诊断 timing smoke 已删除；重复性能采样使用 OFF smoke，构建信息只从 native `build-info` 获取。
 
 Stage 6 每批只输出一份 canonical graph/timing，process 为 `ista-stage6-trace-process/2.0.0`，verdict 为 `ista-stage6-differential-verdict/2.0.0`。值等价与 level 合法性读取同一对象；它们证明不同性质，应同时保留。共享 JSON 编码不得变成共享 oracle 计算。
+
+## Stage 7 CUDA 路径
+
+`ISTA_ENABLE_CUDA` 默认 OFF；启用 CUDA 不自动开启诊断。native 只读 `incregpusta_cuda_enabled` 与 `incregpusta_debug_checks_enabled` 是 Python preflight 和 probe 的构建事实来源。缺设备、unsupported 分析、数值/cycle/capacity、CUDA status/sync、owner/session/generation、真实 rollback 和 cleanup 始终检查。受控 scatter 可复用已验证计算结果，外部任意结果继续完整验证。
+
+ON 使用 `baseline/run_cuda_baseline.py` 和 `timing_dual_csr/cuda_full_trace_controller.py` 独立 fresh CPU 对照；正式 OFF controller 只运行目标 workload，不能生成 full receipt。原始 H2D/D2H/D2D bytes、分配、launch 和同步耗时属于性能事实，始终保存。详细观察/逐字段比较/source isolation 仅 ON。每轮必须防止旧输出伪装当前成功。
+
+Stage 7 full 每批完整导出和复制是功能成本；Stage 8 targeted 不得复用该全量路径并宣称局部更新。事务隔离所需 D2D 可以保留，但必须如实计量。GPU 计时报告写明实际并行度和同步区间，不能将串行 kernel 正确性等同于加速。
+
+## Stage 8 targeted CUDA 路径
+
+生产 frozen trace 使用 `cuda/targeted-full-levelization`，每批仅生成 native 局部 patch，设备维护 Base∪Aux 并完成 full GPU levelization/propagation。通用 `cuda/incremental` 仍由 Stage 9 实现，不把 targeted trace 冒充该 capability。
+
+每批 session/generation、高水位、incidence/重复写、局部 expected、typed table/seed 边界、cycle/数值和 CUDA 状态必须检查。candidate D2D、native Database 事务复制、library pointer 重绑、canonical rank/predecessor 重映和真实 rollback 是功能成本；不可放进诊断条件。每批不得调用完整 GraphBuilder、CSR export/pack、CPU updater/timing/FIFO。
+
+独立 native canonical export、实际 device readback/详细 Aux visits、完整 timing projection、逐 prefix targeted 对 CUDA/full 和 fresh CPU/full、恢复等价证明只在 ON controller。跨构建实际值验收可由单独测试程序通过具体 friend 读回设备；实现不得链接到生产 runtime，不改变 OFF 的 debugState 拒绝行为，也不增加运行期开关。
+
+加载阶段先经过 Stage 7 baseline 生命周期，再建立持久 device session。两次初始化 export/pack 均是端到端 process_ms 的实际成本；`initialization.scope=persistent_device_session_only` 不代表整个加载。每批 telemetry 的 malloc/transfer/launch 必须对应真实 API 调用，详细访问证明不能成为提交授权。

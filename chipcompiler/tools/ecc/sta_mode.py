@@ -59,6 +59,7 @@ class StaFallbackReason(str, Enum):
 
 class StaCapabilityReason(str, Enum):
     BACKEND_UNAVAILABLE = "backend_unavailable"
+    UNSUPPORTED_ANALYSIS_FEATURES = "unsupported_analysis_features"
 
 
 class StaSessionStatusCode(str, Enum):

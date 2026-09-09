@@ -1,6 +1,6 @@
 # ECC 中复现 IncreGPUSTA 的分阶段实施计划
 
-> 状态：`v2.1-redundancy-cleanup`；Stage 0–6 与默认 OFF 开发诊断分离已实现（ecc `dfa7142`，ecc-tools `5d0bf7ad7`）。本轮进一步删除旧恢复链、诊断副本与同源重复证明，保留工作区差异，不 commit、不 push。当前改造和验收见 [冗余清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md)，后续改动遵循 [开发检查规范](incregpusta/development-guidelines.md)。原阶段及诊断分离报告保留历史记录。
+> 状态：`v2.3-cuda-targeted`；Stage 0–6 清理已本地提交（ecc `356fa09`、ecc-tools `4b0398753`），未发布；Stage 7 CUDA full 已实现并完成真实 GPU 验收，保留未提交差异。Stage 8 targeted device 更新、生产 trace 与双模式真实 GPU 验收已完成；见 [Stage 8 报告](incregpusta/stage8-progress-report.md)。Stage 7–8 仍保留未提交差异。见 [Stage 7 报告](incregpusta/stage7-progress-report.md)、[清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。历史验收记录保留。
 > 文档范围：本计划及阶段说明仅适用于 `IncreGPUSTA`；相关文档维护在 `ecc/docs`，不修改仓库通用 README。
 > 目标仓库：`/home/shigure/code/ecc`
 > 强制开发分支：`IncreGPUSTA`
@@ -910,6 +910,8 @@ buffer-count sweep 至少覆盖 1、10、100、1K、10K、100K；同时报告真
 
 ### 阶段 7：可选 CUDA 构建与 GPU full baseline
 
+状态：已验收；见 [详细计划](incregpusta/stage7-detailed-plan.md) 和 [实施报告](incregpusta/stage7-progress-report.md)。当前为串行 GPU 正确性基线，不声明加速。
+
 **先分析**
 
 - ecc-tools 当前 CMake/C++20/OpenMP 结构和 wheel 构建；
@@ -938,6 +940,8 @@ buffer-count sweep 至少覆盖 1、10、100、1K、10K、100K；同时报告真
 记录完整硬件/驱动/toolkit/build flags，不把 compile-only 当 GPU 验证。
 
 ### 阶段 8：GPU targeted Dual-CSR 更新
+
+状态：2026-09-09 已完成独立审查、ON/OFF 真实 GPU 与生产 trace 验收；见 [详细计划](incregpusta/stage8-detailed-plan.md) 和 [实施与验收报告](incregpusta/stage8-progress-report.md)。生产策略为 targeted-full-levelization；通用 cuda/incremental 留在 Stage 9。初始化的两次 export/pack、每批零全量 host 调用及实际传输/分配成本已单独记录。
 
 **先分析**
 

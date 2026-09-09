@@ -25,12 +25,12 @@ from chipcompiler.tools.ecc.sta_mode import (
     StaExecutionRecord,
     StaExecutionRequest,
     StaUpdateStrategy,
-    preflight_stage1_request,
     request_from_mapping,
 )
 from chipcompiler.tools.ecc.sta_qor import (
     POST_SYNTHESIS_STA_CORNER,
 )
+from chipcompiler.tools.ecc.sta_session import preflight_sta_request
 from chipcompiler.tools.ecc.sta_signoff import (
     preflight_sta_direct_run,
     preflight_sta_signoff_run,
@@ -393,7 +393,7 @@ def run_sta_without_spef(
     try:
         run_item = preflight_sta_direct_run(workspace, step)
         execution_request = _workspace_sta_execution_request(workspace)
-        preflight_stage1_request(execution_request)
+        preflight_sta_request(execution_request)
     except Exception as exc:
         workspace.logger.warning(
             "Post-synthesis STA failed; synthesis result is kept: %s",
@@ -1024,7 +1024,7 @@ def run_sta(workspace: Workspace, step: EccStep, ecc_module: ECCToolsModule | No
     """
     signoff_items = preflight_sta_signoff_run(workspace, step)
     execution_request = _workspace_sta_execution_request(workspace)
-    preflight_stage1_request(execution_request)
+    preflight_sta_request(execution_request)
 
     result = False
 

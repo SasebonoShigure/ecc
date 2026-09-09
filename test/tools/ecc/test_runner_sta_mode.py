@@ -38,7 +38,9 @@ def _write(path, text=""):
     return path
 
 
-def test_post_synthesis_cuda_preflight_preserves_stale_artifacts(tmp_path, monkeypatch):
+def test_post_synthesis_cuda_preflight_preserves_stale_artifacts(
+    tmp_path, monkeypatch, unavailable_cuda_native
+):
     netlist = _write(tmp_path / "output" / "gcd.v")
     liberty = _write(tmp_path / "pdk" / "std.lib")
     sdc = _write(tmp_path / "pdk" / "gcd.sdc")
@@ -88,7 +90,9 @@ def test_post_synthesis_cuda_preflight_preserves_stale_artifacts(tmp_path, monke
     assert isinstance(arguments[0], StaUnsupportedError)
 
 
-def test_signoff_cuda_preflight_precedes_engine_creation(tmp_path, monkeypatch):
+def test_signoff_cuda_preflight_precedes_engine_creation(
+    tmp_path, monkeypatch, unavailable_cuda_native
+):
     liberty = _write(tmp_path / "pdk" / "max.lib")
     sdc = _write(tmp_path / "pdk" / "gcd.sdc")
     _write(tmp_path / "RCX_ecc" / "output" / "gcd_RCworst_125C.spef")

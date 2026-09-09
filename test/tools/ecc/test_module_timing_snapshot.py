@@ -136,9 +136,13 @@ def test_single_output_mode_allows_empty_inactive_destination(
     assert "run" in events
 
 
-def test_context_alias_and_capability_preflight_have_zero_side_effects(tmp_path, monkeypatch):
+def test_context_alias_and_capability_preflight_have_zero_side_effects(
+    tmp_path, monkeypatch, unavailable_cuda_native
+):
     events = []
     module = _module(events)
+    module.ecc.resolve_sta_execution = unavailable_cuda_native.resolve_sta_execution
+    module.ecc.StaSessionError = unavailable_cuda_native.StaSessionError
     monkeypatch.setattr(
         ecc_module,
         "discard_sta_run_outputs",

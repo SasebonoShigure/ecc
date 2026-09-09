@@ -1,8 +1,9 @@
 """Python lifecycle wrapper for the native incremental-STA session shell."""
 
 from collections.abc import Callable, Mapping
+from importlib import import_module
 from types import TracebackType
-from typing import Protocol, TypeVar
+from typing import Protocol, TypeVar, runtime_checkable
 
 from chipcompiler.tools.ecc.sta_mode import (
     StaBackend,
@@ -54,11 +55,14 @@ class _NativeStaSession(Protocol):
     def close(self) -> None: ...
 
 
+@runtime_checkable
 class _NativeStaModule(Protocol):
     @property
     def incregpusta_debug_checks_enabled(self) -> bool: ...
 
     StaSessionError: type[Exception]
+
+    def resolve_sta_execution(self, request: Mapping[str, str]) -> Mapping[str, object]: ...
 
     def create_incremental_sta_session(self, request: Mapping[str, str]) -> _NativeStaSession: ...
 
@@ -186,6 +190,38 @@ def _request_payload(request: StaExecutionRequest) -> dict[str, str]:
     }
 
 
+def preflight_sta_request(
+    request: StaExecutionRequest,
+    native_module: _NativeStaModule | None = None,
+) -> StaExecutionRecord:
+    """Resolve CUDA capability from the binding before creating outputs or a session."""
+    if not isinstance(request, StaExecutionRequest):
+        raise TypeError("request must be StaExecutionRequest")
+    if request.backend is StaBackend.CPU:
+        return preflight_stage1_request(request)
+    if native_module is None:
+        binding = import_module("ecc_tools_bin.ecc_py")
+        if not isinstance(binding, _NativeStaModule):
+            raise StaExecutionContractError("native STA module does not expose the session API")
+        native_module = binding
+
+    try:
+        raw_record = native_module.resolve_sta_execution(_request_payload(request))
+    except native_module.StaSessionError as native_error:
+        try:
+            parent_error = _parent_session_error(native_error, request)
+        except StaExecutionContractError as contract_error:
+            raise contract_error from native_error
+        raise parent_error from native_error
+    record = execution_record_from_mapping(raw_record)
+    resolved_request = StaExecutionRequest(
+        record.requested_backend, record.requested_update_strategy, record.fallback_policy
+    )
+    if resolved_request != request:
+        raise StaExecutionContractError("native preflight record differs from the requested mode")
+    return record
+
+
 def _require_session_token(value: object) -> int:
     if type(value) is not int or not 0 < value <= _MAX_SESSION_TOKEN:
         raise StaExecutionContractError("native STA session token must be a nonzero uint64")
@@ -211,7 +247,7 @@ class IncrementalStaSession:
         self._request = request
         validate_sta_analysis_context(analysis_context)
         self._analysis_context = analysis_context
-        self._expected_record = preflight_stage1_request(request)
+        self._expected_record = preflight_sta_request(request, native_module)
         self._config = config
         self._config_dict = dict(config_dict or {})
         self._native_session: _NativeStaSession | None = None
@@ -280,7 +316,7 @@ class IncrementalStaSession:
         record = execution_record_from_mapping(self._call_native(native_session.run_full_baseline))
         if record != self._expected_record:
             raise StaExecutionContractError(
-                "native STA execution record differs from the stage-1 preflight outcome"
+                "native STA execution record differs from the preflight outcome"
             )
         if not self._debug_checks:
             return record
@@ -289,7 +325,7 @@ class IncrementalStaSession:
         if self._request.update_strategy is StaUpdateStrategy.FULL:
             if observation is not None:
                 raise StaExecutionContractError(
-                    "cpu/full native STA session must not expose a snapshot observation"
+                    "full native STA session must not expose a snapshot observation"
                 )
         else:
             if observation is None:

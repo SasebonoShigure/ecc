@@ -2,6 +2,7 @@
 
 import json
 import shutil
+from dataclasses import replace
 from enum import Enum
 from pathlib import Path
 
@@ -56,7 +57,12 @@ class FakeNativeStaSession:
     def run_full_baseline(self):
         self.owner.run_sta()
         self.state = "baseline_executed"
-        record = preflight_stage1_request(self.request)
+        cpu_record = preflight_stage1_request(replace(self.request, backend=StaBackend.CPU))
+        record = replace(
+            cpu_record,
+            requested_backend=self.request.backend,
+            executed_backend=self.request.backend,
+        )
         return {
             name: value.value if isinstance(value, Enum) else value
             for name, value in vars(record).items()
@@ -156,12 +162,26 @@ def make_module() -> ECCToolsModule:
     return module
 
 
-def test_run_timing_splits_text_reports_and_structured_artifacts(tmp_path):
+@pytest.mark.parametrize("backend", list(StaBackend))
+def test_run_timing_splits_text_reports_and_structured_artifacts(tmp_path, backend):
     module = make_module()
+    request = StaExecutionRequest(backend, StaUpdateStrategy.FULL, StaFallbackPolicy.ERROR)
+    expected = replace(
+        preflight_stage1_request(replace(request, backend=StaBackend.CPU)),
+        requested_backend=backend,
+        executed_backend=backend,
+    )
+    module.ecc.StaSessionError = RuntimeError
+    module.ecc.resolve_sta_execution = lambda payload: {
+        name: value.value if isinstance(value, Enum) else value
+        for name, value in vars(expected).items()
+    }
+
     report_dir = tmp_path / "report" / "MAX_125" / "RCworst"
     feature_dir = tmp_path / "feature" / "MAX_125" / "RCworst"
 
-    module.run_timing(
+    record = module.run_timing(
+        execution_request=request,
         work_dir=tmp_path / "data" / "sta",
         report_dir=report_dir,
         feature_dir=feature_dir,
@@ -171,6 +191,7 @@ def test_run_timing_splits_text_reports_and_structured_artifacts(tmp_path):
         corner="MAX_125/RCworst",
     )
 
+    assert record == expected
     assert (report_dir / "qor_summary.rpt").is_file()
     assert (report_dir / "timing_max.rpt").is_file()
     assert (report_dir / "power.rpt").is_file()
@@ -436,8 +457,10 @@ def test_run_timing_cpu_incremental_without_mutation_is_baseline_only(tmp_path):
     ]
 
 
-def test_run_timing_cuda_preflight_preserves_stale_artifacts(tmp_path):
+def test_run_timing_cuda_preflight_preserves_stale_artifacts(tmp_path, unavailable_cuda_native):
     module = make_module()
+    module.ecc.resolve_sta_execution = unavailable_cuda_native.resolve_sta_execution
+    module.ecc.StaSessionError = unavailable_cuda_native.StaSessionError
     work_dir = tmp_path / "data" / "sta"
     report_dir = tmp_path / "report"
     feature_dir = tmp_path / "feature"

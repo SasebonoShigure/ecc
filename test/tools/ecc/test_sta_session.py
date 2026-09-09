@@ -1,4 +1,7 @@
+from dataclasses import replace
 from enum import Enum
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -14,7 +17,7 @@ from chipcompiler.tools.ecc.sta_mode import (
     StaUpdateStrategy,
     preflight_stage1_request,
 )
-from chipcompiler.tools.ecc.sta_session import IncrementalStaSession
+from chipcompiler.tools.ecc.sta_session import IncrementalStaSession, preflight_sta_request
 from chipcompiler.tools.ecc.sta_snapshot import make_direct_sta_analysis_context
 
 _CONTEXT = make_direct_sta_analysis_context()
@@ -212,8 +215,23 @@ def test_init_native_unsupported_is_converted_and_handle_is_closed():
     assert native.session.calls == [("initialize", "", {}), ("close",)]
 
 
-def test_run_native_error_is_converted_and_session_is_closed():
-    native_error = _native_error(status_code="run_failed", state="poisoned")
+@pytest.mark.parametrize(
+    "status,reason,error_type",
+    [
+        (StaSessionStatusCode.RUN_FAILED, None, StaSessionError),
+        (
+            StaSessionStatusCode.UNSUPPORTED,
+            StaCapabilityReason.UNSUPPORTED_ANALYSIS_FEATURES,
+            StaUnsupportedError,
+        ),
+    ],
+)
+def test_run_native_error_is_converted_and_session_is_closed(status, reason, error_type):
+    native_error = _native_error(
+        status_code=status.value,
+        state="poisoned",
+        capability_reason=None if reason is None else reason.value,
+    )
     native = FakeNativeModule(run_error=native_error)
 
     with (
@@ -222,8 +240,10 @@ def test_run_native_error_is_converted_and_session_is_closed():
     ):
         session.run_full_baseline()
 
-    assert type(raised.value) is StaSessionError
-    assert raised.value.status_code is StaSessionStatusCode.RUN_FAILED
+    assert type(raised.value) is error_type
+    assert raised.value.status_code is status
+    assert raised.value.capability_reason is reason
+    assert raised.value.state == "poisoned"
     assert raised.value.__cause__ is native_error
     assert native.session.calls == [
         ("initialize", "", {}),
@@ -457,3 +477,83 @@ def test_native_record_mismatch_is_a_contract_error():
         session.run_full_baseline()
 
     assert native.session.calls[-1] == ("close",)
+
+
+def _cuda_request():
+    return replace(_request(), backend=StaBackend.CUDA)
+
+
+def _cuda_record_mapping():
+    return {
+        **_record_mapping(_request()),
+        "requested_backend": "cuda",
+        "executed_backend": "cuda",
+    }
+
+
+def test_cuda_preflight_uses_native_resolution_and_preserves_session_lifecycle():
+    request = _cuda_request()
+    raw_record = _cuda_record_mapping()
+    native_session = FakeNativeSession(request)
+    native_session.run_full_baseline = Mock(return_value=raw_record)
+    native = SimpleNamespace(
+        incregpusta_debug_checks_enabled=False,
+        StaSessionError=FakeNativeStaSessionError,
+        resolve_sta_execution=Mock(return_value=raw_record),
+        create_incremental_sta_session=Mock(return_value=native_session),
+    )
+
+    with IncrementalStaSession(native, request, _CONTEXT) as session:
+        result = session.run_full_baseline()
+
+    expected = replace(
+        preflight_stage1_request(_request()),
+        requested_backend=StaBackend.CUDA,
+        executed_backend=StaBackend.CUDA,
+    )
+    assert result == expected
+    native.resolve_sta_execution.assert_called_once_with(
+        {"backend": "cuda", "update_strategy": "full", "fallback_policy": "error"}
+    )
+    native.create_incremental_sta_session.assert_called_once_with(
+        {"backend": "cuda", "update_strategy": "full", "fallback_policy": "error"}
+    )
+    native_session.run_full_baseline.assert_called_once_with()
+    assert native_session.calls == [("initialize", "", {}), ("close",)]
+
+
+@pytest.mark.parametrize("status", ["unsupported", "quarantined"])
+def test_cuda_preflight_preserves_native_capability_and_lifecycle_failures(status):
+    request = _cuda_request()
+    error = _native_error(
+        request=request,
+        status_code=status,
+        state="created",
+        capability_reason="backend_unavailable" if status == "unsupported" else None,
+    )
+    native = SimpleNamespace(
+        StaSessionError=FakeNativeStaSessionError,
+        resolve_sta_execution=Mock(side_effect=error),
+    )
+    with pytest.raises(StaSessionError) as raised:
+        preflight_sta_request(request, native)
+    assert raised.value.status_code.value == status
+    assert raised.value.request == request
+    assert raised.value.__cause__ is error
+
+
+@pytest.mark.parametrize(
+    "raw_record",
+    [
+        {**_cuda_record_mapping(), "fallback_policy": "full_with_record"},
+        {**_cuda_record_mapping(), "unexpected": 1},
+        {**_cuda_record_mapping(), "executed_backend": "cpu"},
+    ],
+)
+def test_cuda_preflight_rejects_mismatched_or_invalid_native_records(raw_record):
+    native = SimpleNamespace(
+        StaSessionError=FakeNativeStaSessionError,
+        resolve_sta_execution=Mock(return_value=raw_record),
+    )
+    with pytest.raises(StaExecutionContractError):
+        preflight_sta_request(_cuda_request(), native)

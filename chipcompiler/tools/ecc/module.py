@@ -9,10 +9,9 @@ from typing import TypeAlias
 from chipcompiler.tools.ecc.sta_artifacts import discard_sta_run_outputs, publish_sta_artifacts
 from chipcompiler.tools.ecc.sta_mode import (
     StaExecutionRequest,
-    preflight_stage1_request,
     request_from_mapping,
 )
-from chipcompiler.tools.ecc.sta_session import IncrementalStaSession
+from chipcompiler.tools.ecc.sta_session import IncrementalStaSession, preflight_sta_request
 from chipcompiler.tools.ecc.sta_snapshot import (
     StaAnalysisContext,
     StaSnapshotObservation,
@@ -716,7 +715,7 @@ class ECCToolsModule:
 
         if execution_request is None:
             execution_request = request_from_mapping({})
-        preflight_stage1_request(execution_request)
+        preflight_sta_request(execution_request, self.ecc)
 
         discard_sta_run_outputs(work_dir, report_dir, feature_dir, modes)
 
