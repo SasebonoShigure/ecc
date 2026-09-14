@@ -26,7 +26,7 @@ OFF 保留正常功能与必要失败回归；ON 运行完整 oracle/fresh repla
 
 ## 清理后的检查归属与诊断入口
 
-Factory 在构造只读 verified stage 前执行最终 ON aggregate proof；publish 负责绑定、generation、poison 状态及原子交换。完整 levels proof 在生成路径执行一次：full 位于 backend，mixed 位于 pipeline。公共任意输入、外部 levels、测试注入 replay 仍完整验证；updater/index 的局部适用性与越界检查保留，不能用公共 skip-validation 参数绕过。
+Factory 在构造只读 verified stage 前执行最终 ON aggregate proof；publish 负责绑定、generation、poison 状态及原子交换。完整 levels proof 在生成路径执行一次：full 位于 backend；mixed 的受控 graph proof 位于 builder，result proof 位于 Kahn，最终 levels proof 位于重建边界。公共任意输入、外部 levels、测试注入 replay 仍完整验证；updater/index 的局部适用性与越界检查保留，不能用公共 skip-validation 参数绕过。
 
 恢复只使用按已保存模式重放的路径。恢复结果转移所有权，不在发布前复制整份已完成状态；诊断 evidence 仅 ON 返回，不构成授权。预编辑 binding 保留实际 graph/index，resolver/identity 的比较副本仅 ON 存在。不要为证明复制次数增加返回固定值的 API。
 
@@ -44,13 +44,28 @@ Stage 7 full 每批完整导出和复制是功能成本；Stage 8 targeted 不�
 
 ## Stage 8 targeted CUDA 路径
 
-生产 frozen trace 使用 `cuda/targeted-full-levelization`，每批仅生成 native 局部 patch，设备维护 Base∪Aux 并完成 full GPU levelization/propagation。通用 `cuda/incremental` 仍由 Stage 9 实现，不把 targeted trace 冒充该 capability。
+生产 frozen trace 使用 `cuda/targeted-full-levelization`，每批仅生成 native 局部 patch，设备维护 Base∪Aux 并完成 full GPU levelization/propagation。该 Stage 8 策略不同于下面 Stage 9 的 `cuda/incremental`，不得混写 actual strategy。
 
 每批 session/generation、高水位、incidence/重复写、局部 expected、typed table/seed 边界、cycle/数值和 CUDA 状态必须检查。candidate D2D、native Database 事务复制、library pointer 重绑、canonical rank/predecessor 重映和真实 rollback 是功能成本；不可放进诊断条件。每批不得调用完整 GraphBuilder、CSR export/pack、CPU updater/timing/FIFO。
 
 独立 native canonical export、实际 device readback/详细 Aux visits、完整 timing projection、逐 prefix targeted 对 CUDA/full 和 fresh CPU/full、恢复等价证明只在 ON controller。跨构建实际值验收可由单独测试程序通过具体 friend 读回设备；实现不得链接到生产 runtime，不改变 OFF 的 debugState 拒绝行为，也不增加运行期开关。
 
 加载阶段先经过 Stage 7 baseline 生命周期，再建立持久 device session。两次初始化 export/pack 均是端到端 process_ms 的实际成本；`initialization.scope=persistent_device_session_only` 不代表整个加载。每批 telemetry 的 malloc/transfer/launch 必须对应真实 API 调用，详细访问证明不能成为提交授权。
+
+
+## Stage 9 hybrid CUDA incremental
+
+`cuda/incremental` frozen trace 每批复用 canonical CPU mixed builder/Kahn，随后用旧 level D2D、新节点一次批量 H2D 和 GPU node2level 重建，再执行全图 GPU forward/backward propagation。endpoint binding 必须维护真实 levelization eligibility 和 BaseOut/AuxOut 归属；禁止构造假 payload 或另存 CPU Dual-CSR/timing shadow。
+
+内部上一代 levels 以引用借用；OFF 保留维度、范围、高水位、generation、roots、indegree、processed count、cycle 和 CUDA status 检查。受控 mixed graph 完整 proof 仅 builder 的 ON 位置负责，Kahn 仅证明自己生成的 result，不嵌套公共 graph validator。外部 previous/graph/replay 输入仍完整校验。ON 的 CPU reconstruction oracle 与独立 level 不变量检查不能移入正常性能路径。
+
+GPU reconstruction 计时必须从 CPU build/Kahn/plan 完成后开始，报告 CPU build、Kahn、plan、GPU reconstruction、update、propagation、scatter、batch/process total。完整传播仍是功能成本；当前 propagation kernel 的串行实现不能被描述为已证实加速。
+
+仅真实 old-level order conflict 支持显式 `full_with_record`。重试前释放失败的 detached device candidate，再针对同一健康 owner 执行 full；actual cycle、数值/容量及 CUDA 错误不得伪装 fallback 成功。详细 rejected attempt 只记录已实际发生的失败，默认 Error 拒绝后仍须允许健康批次。损坏 CUDA context 不复用，恢复验收在新的健康进程按实际 mixed 模式重放。
+
+ON 使用 `cuda_targeted_trace_controller.py --strategy incremental` 保留逐 prefix 独立 CPU/full、CUDA/full、level 合法性、winner/source isolation 和恢复等价；OFF 同一入口加 `--performance`，先核验真实 build-info，再仅执行目标 workload。批次数必须绑定请求 trace，generation 连续；不能相信子进程自己缩减后的 prefix。通用 Python session 的未编辑初始化如实记录 baseline_only/full；通用 physical/greedy 集成仍属 Stage 10。
+
+验收 Python binding 必须检查实际只读 CUDA/debug 构建状态。当前 ecc_py 链接到共用 bin，多个构建的链接和测试应顺序执行，分别保存并选择对应构建产物；不能因 Python 导入成功就认定来自指定 ON/OFF 配置。CUDA 启用构建的无设备拒绝在独立 `CUDA_VISIBLE_DEVICES=-1` 进程验证；默认 CUDA 关闭构建另做回归。
 
 
 ## Python/native fingerprint 契约

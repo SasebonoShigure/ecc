@@ -138,3 +138,8 @@ Stage 6 child已在`IncreGPUSTA`本地提交为`b8bfc3a79930b0be146ac26ca10dc0e9
 ## 2026-09-05 第二轮清理同步
 
 mixed pipeline 统一通过 `runCpuIncrementalLevelization()` 自由函数调用，删除无状态静态类包装。确定性 trace 类型移至 mixed 模块并被运行遥测复用；transaction 仍只持久化确定性基类，计数恒等式只保留一份。耗时与 `legal_noncompact` 继续排除在持久化及恢复等价之外，JSON wire 不变。 验证与范围说明见[第二轮清理报告](stage0-stage6-second-cleanup-report.md)。
+
+
+## Stage 9 复用补充（2026-09-09）
+
+Stage 9 将本阶段 canonical mixed builder/Kahn 的 topology 输入收窄为内部 source/sink/eligibility/真实 storage traversal，CPU ActiveCsrEdgeView 公共入口仍从真实 payload 适配，算法不另写。受控 PreviousLevels 以引用借用；公共任意输入继续完整校验，内部 graph proof 仅 builder ON、result proof 仅 Kahn ON，保留必要边界/indegree/processed count/cycle。CPU pipeline 使用同一受控 Kahn，删除嵌套的重复 graph 全检。本阶段原历史验收保留，当前代码的 CPU property/native 及 CUDA/default 回归见 [Stage 9 最终报告](stage9-progress-report.md)。

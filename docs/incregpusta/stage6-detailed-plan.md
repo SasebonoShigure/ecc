@@ -445,3 +445,8 @@ Stage 6按本计划完成，未改变成功域和非范围：production路径为
 - 最终独立全diff审查结论`APPROVE`，无remaining blocker/major/minor。
 
 完成结论以逐字段功能正确性、typed failure、真实execution path、fresh replay、rollback与source isolation为依据；hash/object/count inventory未被用作核心证明。详细命令、边界和辅助限制见[阶段 6 报告](stage6-report.md)。
+
+
+## Stage 9 复用补充（2026-09-09）
+
+Stage 9 将本阶段 canonical mixed builder/Kahn 的 topology 输入收窄为内部 source/sink/eligibility/真实 storage traversal，CPU ActiveCsrEdgeView 公共入口仍从真实 payload 适配，算法不另写。受控 PreviousLevels 以引用借用；公共任意输入继续完整校验，内部 graph proof 仅 builder ON、result proof 仅 Kahn ON，保留必要边界/indegree/processed count/cycle。CPU pipeline 使用同一受控 Kahn，删除嵌套的重复 graph 全检。本阶段原历史验收保留，当前代码的 CPU property/native 及 CUDA/default 回归见 [Stage 9 最终报告](stage9-progress-report.md)。

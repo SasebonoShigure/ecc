@@ -1,6 +1,6 @@
 # Stage 9：Hybrid levelization 与端到端 CUDA incremental
 
-状态：2026-09-09 分析后的设计草案，独立设计二轮复审已通过，开始实施；阶段仍未验收。目标依照总计划阶段 9，不缩减为 compile-only 或只开放 capability；完成真实 GPU fixed trace、错误恢复及 ON/OFF 验收前不标完成。用户随后授权提交当前文档草案；不 push，保留用户 CLAUDE 和四份既有未跟踪报告。
+状态：2026-09-09 实现和本机验收完成，见 [最终报告](stage9-progress-report.md#最终验收2026-09-09)。独立设计、代码复核和真实 GPU/CPU/default 回归已执行；历史草案与失败记录保留在报告。实现阶段性提交 ecc a8697e5 / ecc-tools 73aa7816f，验收收尾改动保留工作区，不自动 commit/push。
 
 ## 1. 当前边界与复用
 

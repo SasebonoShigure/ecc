@@ -1,4 +1,4 @@
-# Stage 0–8 开发检查分类
+# Stage 0–9 开发检查分类
 
 状态：本表已同步 2026-09-08 冗余清理；当前结果见 [清理报告](stage0-6-redundancy-cleanup-report.md)，此前诊断分离结果与限制见 [实施报告](debug-checks-implementation-report.md) 和 [实测证据](debug-check-acceptance.json)。开发规则见 [development-guidelines.md](development-guidelines.md)。复杂度中的 N/E 为节点/边数，B 为累计批次数，D 为本批编辑规模。
 
@@ -56,6 +56,24 @@
 | test-only device friend readback / Aux omission、硬件故障隔离程序 | 开发验收；读取实际设备或显式错误实验 | 仅测试程序，不链接生产路径；硬件故障机制要求 ON |
 
 当前边界、实测字节/调用、失败及修复见 [Stage 8 报告](stage8-progress-report.md)。初始化两次 export/pack 与逐批零全量调用分开记录，不能混为一个局部成本承诺。
+
+
+## Stage 9 hybrid levelization 补充
+
+| 调用链 / 数据 | 用途与复杂度 | 归属 |
+|---|---|---|
+| binding source/sink/eligibility/真实 BaseOut-AuxOut | canonical topology 的必要输入；patch 随实际 incidence 更新，mixed build 遍历 O(E) | 始终保留；无 payload/CPU CSR 影子 |
+| 借用 PreviousLevels、维度/局部 level 范围、高水位/roots/indegree/processed count | 受控状态适用性及内存、cycle 安全；尺寸 O(1)，其余融合到必要算法扫描 | 始终保留 |
+| 公共 arbitrary previous/graph/replay 校验 | 外部数据边界；O(N+E) | 始终保留；不公开 skip 参数 |
+| 受控 previous 完整 permutation/inverse、mixed graph/result 完整 proof | 重复一致性证明；O(N+E) | ON；graph 归 builder，result 归 Kahn，不调用嵌套公共全检 |
+| GPU offsets/old-block copy plan/new-node placements、D2D/H2D/node2level | 重建真实 levels；O(levels+mixed nodes) 计划，O(N) 设备操作 | 始终保留；OFF 无 previous 深拷贝或 CPU reconstruction |
+| canonical CPU reconstruction oracle、GPU 全 levels/timing_order 比较、独立 eligible-edge precedence | 独立证明 GPU 重建与层合法性；O(N+E) | ON |
+| actual DAG classifier、Error/full_with_record policy、失败 candidate 释放及重试 | 区分 cycle 与可恢复 old-order conflict；失败路径 O(N+E)，真实 full 重试另计 | 始终保留；默认不 fallback，不伪造执行结果 |
+| CPU/GPU 各阶段时间、真实传输/分配/launch、请求/执行/propagation scope | 实际功能与性能事实 | 始终保留；GPU event 不包含 CPU mixed 等待时间 |
+| 独立 full/fresh prefix oracle、完整 timing/winner/level/source isolation、恢复比较 | 正确性验收 | ON；OFF performance 仅实际目标样本，comparison=not_run |
+| 实际断点/API 调用、分配生命周期和跨构建设备读回 | 开发验收证据，不参与提交授权 | 外部测试/剖析程序；不链接生产、无固定返回计数 API |
+
+具体结果见 [Stage 9 报告](stage9-progress-report.md)。cuda/targeted-full-levelization 的历史 Stage 8 格式保留；Stage 9 incremental 使用独立 trace/verdict/performance schema，不修改 Stage 6 或默认 OFF 性能契约。
 
 
 ## 2026-09-14 corner fingerprint 修复
