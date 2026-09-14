@@ -51,3 +51,10 @@ Stage 7 full 每批完整导出和复制是功能成本；Stage 8 targeted 不�
 独立 native canonical export、实际 device readback/详细 Aux visits、完整 timing projection、逐 prefix targeted 对 CUDA/full 和 fresh CPU/full、恢复等价证明只在 ON controller。跨构建实际值验收可由单独测试程序通过具体 friend 读回设备；实现不得链接到生产 runtime，不改变 OFF 的 debugState 拒绝行为，也不增加运行期开关。
 
 加载阶段先经过 Stage 7 baseline 生命周期，再建立持久 device session。两次初始化 export/pack 均是端到端 process_ms 的实际成本；`initialization.scope=persistent_device_session_only` 不代表整个加载。每批 telemetry 的 malloc/transfer/launch 必须对应真实 API 调用，详细访问证明不能成为提交授权。
+
+
+## Python/native fingerprint 契约
+
+corner fingerprint 的生产定义为 `makeReferenceCornerFingerprint()` 的 `reference-corner-payload`（含 empty marker）再包装 `corner-fingerprint`；通用 `canonicalAnalysisContextBytes()` 编码仅表示 context，本身不是生产 corner payload。两端测试须覆盖生产 identity 构造和真实 binding 快照的捕获/释放，不能只比较通用 helper 的已知答案或由待测 Python 函数生成的 mock。
+
+修改编码必须核对 domain/schema、标记、字节长度和 UTF-8；必要 context 校验及 native 身份绑定始终保留。Python snapshot observation 的额外匹配仅 ON，OFF 不因修复而采集诊断。此次修复保持 native schema/identity 值不变，不接受旧的错误 Python 指纹。

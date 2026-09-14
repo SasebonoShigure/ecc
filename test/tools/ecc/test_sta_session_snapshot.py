@@ -131,6 +131,9 @@ class _NativeModule:
         self.session = _NativeSession(request, **session_kwargs)
         self.factory_calls = 0
 
+    def resolve_sta_execution(self, request):
+        return _record_mapping(self.request)
+
     def create_incremental_sta_session(self, request):
         self.factory_calls += 1
         return self.session
@@ -165,9 +168,11 @@ def test_incremental_observation_is_token_bound_and_released_exactly_once():
 
     with session:
         record = session.run_full_baseline()
+        assert session.snapshot_observation is not None
         assert session.snapshot_observation.state is StaSnapshotState.READY
 
     assert record == preflight_stage1_request(request)
+    assert session.snapshot_observation is not None
     assert session.snapshot_observation.state is StaSnapshotState.RELEASED
     assert session.snapshot_observation.identity.session_token == 1
     assert native.session.initialized_context == sta_analysis_context_to_native_mapping(CONTEXT)
@@ -351,3 +356,22 @@ def test_build_flag_controls_observation_collection(debug_checks):
     assert native.session.close_calls == 1
     assert native.session.observation_reads == (2 if debug_checks else 0)
     assert (session.snapshot_observation is not None) is debug_checks
+
+
+@pytest.mark.parametrize(
+    "wrong_fingerprint",
+    [
+        "9e0c49b01171ddde3bf24e9ae4ebdfa92fdcc22ba4f4dcba65aff23eb1060caa",  # Old generic payload.
+        "3e1ae07c69c21623632f49b62cac0604e6b62d5acabdd2ba5c992a08ea2d9de0",  # Different context.
+    ],
+)
+def test_initial_snapshot_rejects_wrong_corner_fingerprint(wrong_fingerprint):
+    request = _request(StaUpdateStrategy.INCREMENTAL)
+    observation = _snapshot_mapping(1)
+    observation["identity"]["corner_fingerprint"] = wrong_fingerprint
+    native = _NativeModule(request, observation_script=(observation, None))
+    session = IncrementalStaSession(native, request, CONTEXT)
+    with pytest.raises(StaExecutionContractError, match="capture contract"), session:
+        session.run_full_baseline()
+    assert native.session.close_calls == 1
+    _assert_failed_session_terminal(session, native)

@@ -422,7 +422,7 @@ parent post-synthesis/direct入口先resolve context，再做artifact discard或
 
 native factory只解析Stage1 request并创建无token的`created` handle，不读/递增token counter、不取lease。binding `initialize`先对exact三键canonical string做strict validation；成功后才分配下一nonzero token、取得owner lease并调用production initialize。非法context会调用binding initialize一次，但token/counter、lease、DataManager和production-operation callback均保持0；context随后immutable。合法context发生lease/init失败时token不复用。不同raw context必须改变corner/composite hash。
 
-Step 3在parent `sta_snapshot.py`只实现pure frozen context与两层KAT：`sha256(canonicalAnalysisContextBytes({slow,25,__no_rc_corner__}))=9d72757619bf1225c9888aa02b1f9917c8ea54a475754a8aae5939a7a96a1b83`；再执行`componentFingerprint("corner-fingerprint", payload)`得到observation使用的`095aeaf315c1c903fb0d166788cf05aa90af0055e41a25ae86e3458ce5f62a2a`。另以`{慢,25,__no_rc_corner__}`冻结UTF-8 length-prefix=3、payload SHA `06402d67b192a27d7caef43a34054c58938df1e20fd5b9aefaffc5bc8486b8dd`和component `e3bafb5e252ccc546ba306fd33f30122773840f1bc37a616752ebb96da26eec2`，禁止按code point计长。不接runner/session。Step 4 detached测试由caller传入context/token；真实token分配和全corner preflight仍只在Step 7实现。
+Step 3 的通用 context 编码及历史 KAT 见 [Step 3 计划](stage2-step3-plan.md#42-parent-staanalysiscontext)。2026-09-14 修正：`canonicalAnalysisContextBytes` 的 `analysis-context` payload 与生产快照的 `reference-corner-payload` 不同；Python `corner_fingerprint()` 必须使用后者（含 empty marker）再执行外层 `corner-fingerprint` hash。旧通用 payload/component KAT 保留为历史记录，不再称为 observation 指纹。生产 direct/ASCII/UTF-8 KAT 和真实 binding 生命周期同时验收。Step 4 detached 测试由 caller 传入 context/token；真实 token 分配和全 corner preflight 仍由 Step 7 实现。
 
 ### 11.4 Generation、capture与capacity
 

@@ -362,7 +362,7 @@ def _append_domain(payload: bytearray, domain: str) -> None:
 
 
 def canonical_analysis_context_bytes(context: StaAnalysisContext) -> bytes:
-    """Encode context exactly like C++ ``canonicalAnalysisContextBytes``."""
+    """Encode generic context bytes, separate from the production corner payload."""
 
     validate_sta_analysis_context(context)
     payload = bytearray()
@@ -374,9 +374,16 @@ def canonical_analysis_context_bytes(context: StaAnalysisContext) -> bytes:
 
 
 def corner_fingerprint(context: StaAnalysisContext) -> str:
-    """Return the domain-separated component fingerprint used by observations."""
+    """Match the production C++ ``makeReferenceCornerFingerprint`` payload."""
 
-    context_payload = canonical_analysis_context_bytes(context)
+    validate_sta_analysis_context(context)
+    context_payload = bytearray()
+    _append_domain(context_payload, "reference-corner-payload")
+    # Validated context fields are nonempty, so the native empty marker is false.
+    context_payload.append(0)
+    _append_string(context_payload, context.liberty_corner)
+    _append_string(context_payload, context.temperature)
+    _append_string(context_payload, context.rc_corner)
     payload = bytearray()
     _append_domain(payload, "corner-fingerprint")
     payload.extend(struct.pack(">Q", len(context_payload)))

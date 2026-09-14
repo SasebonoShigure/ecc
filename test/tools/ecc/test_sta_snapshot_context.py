@@ -10,6 +10,7 @@ from chipcompiler.tools.ecc.sta_snapshot import (
     StaSnapshotContractError,
     canonical_analysis_context_bytes,
     corner_fingerprint,
+    make_direct_sta_analysis_context,
     normalize_sta_analysis_context,
     validate_sta_analysis_context,
 )
@@ -76,25 +77,21 @@ def test_validator_requires_an_already_canonical_frozen_context():
 
 
 @pytest.mark.parametrize(
-    ("corner", "payload_sha", "component_sha", "encoded_length"),
+    ("corner", "payload_sha", "encoded_length"),
     [
         (
             "slow",
             "9d72757619bf1225c9888aa02b1f9917c8ea54a475754a8aae5939a7a96a1b83",
-            "095aeaf315c1c903fb0d166788cf05aa90af0055e41a25ae86e3458ce5f62a2a",
             4,
         ),
         (
             "慢",
             "06402d67b192a27d7caef43a34054c58938df1e20fd5b9aefaffc5bc8486b8dd",
-            "e3bafb5e252ccc546ba306fd33f30122773840f1bc37a616752ebb96da26eec2",
             3,
         ),
     ],
 )
-def test_analysis_context_double_layer_known_answers(
-    corner, payload_sha, component_sha, encoded_length
-):
+def test_generic_analysis_context_known_answers(corner, payload_sha, encoded_length):
     context = normalize_sta_analysis_context(
         liberty_corner=corner,
         temperature=25,
@@ -105,7 +102,6 @@ def test_analysis_context_double_layer_known_answers(
     position = payload.index(encoded_corner)
     assert struct.unpack(">Q", payload[position - 8 : position])[0] == encoded_length
     assert hashlib.sha256(payload).hexdigest() == payload_sha
-    assert corner_fingerprint(context) == component_sha
 
 
 def test_raw_context_changes_component_fingerprint_without_sanitization():
@@ -115,3 +111,30 @@ def test_raw_context_changes_component_fingerprint_without_sanitization():
     )
     assert canonical_analysis_context_bytes(slow) != canonical_analysis_context_bytes(other)
     assert corner_fingerprint(slow) != corner_fingerprint(other)
+
+
+@pytest.mark.parametrize(
+    ("context", "expected"),
+    [
+        (
+            make_direct_sta_analysis_context(),
+            "762ed637a7b3f10653e1212cf54480f9d8b319108418663f301a9b45b5e97dcf",
+        ),
+        (
+            StaAnalysisContext("slow", "25", "__no_rc_corner__"),
+            "3e1ae07c69c21623632f49b62cac0604e6b62d5acabdd2ba5c992a08ea2d9de0",
+        ),
+        (
+            StaAnalysisContext("慢", "25", "__no_rc_corner__"),
+            "71ebe214003ff803fcf733046f836fa7e5b9cf37f2a94de04f1ca42d6cbd2c89",
+        ),
+    ],
+)
+def test_production_corner_fingerprint_known_answers(context, expected):
+    # Also exercised through makeReferenceInputIdentity in the native component test.
+    assert corner_fingerprint(context) == expected
+
+
+def test_corner_fingerprint_rejects_empty_context():
+    with pytest.raises(StaSnapshotContractError):
+        corner_fingerprint(StaAnalysisContext("", "", ""))

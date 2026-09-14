@@ -20,12 +20,16 @@ from chipcompiler.tools.ecc.sta_mode import (
     StaUpdateStrategy,
 )
 from chipcompiler.tools.ecc.sta_session import preflight_sta_request
+from chipcompiler.tools.ecc.sta_snapshot import StaSnapshotState
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--backend", choices=[item.value for item in StaBackend], required=True)
     parser.add_argument("--case", choices=("chain", "diamond"), default="chain")
+    parser.add_argument(
+        "--strategy", choices=[item.value for item in StaUpdateStrategy], default="full"
+    )
     parser.add_argument("--output-root", type=Path, required=True)
     expectation = parser.add_mutually_exclusive_group()
     expectation.add_argument("--expect-unavailable", action="store_true")
@@ -48,7 +52,7 @@ def main() -> None:
         build[name] = value
     build["module_path"] = native.__file__
     request = StaExecutionRequest(
-        StaBackend(args.backend), StaUpdateStrategy.FULL, StaFallbackPolicy.ERROR
+        StaBackend(args.backend), StaUpdateStrategy(args.strategy), StaFallbackPolicy.ERROR
     )
     if args.expect_unavailable:
         try:
@@ -110,6 +114,7 @@ def main() -> None:
                 raise RuntimeError("unsupported analysis published successful timing artifacts")
         for index in range(2):
             root = args.output_root / f"run-{index}"
+            observations = []
             record = module.run_timing(
                 work_dir=root / "work",
                 report_dir=root / "report",
@@ -118,7 +123,21 @@ def main() -> None:
                 sdc_path=str(fixtures / f"{args.case}.sdc"),
                 output_modes=("report", "structured"),
                 execution_request=request,
+                snapshot_observation_sink=lambda _context,
+                observation,
+                sink=observations: sink.append(observation),
             )
+            [observation] = observations
+            expect_snapshot = (
+                native.incregpusta_debug_checks_enabled
+                and request.backend is StaBackend.CPU
+                and request.update_strategy is StaUpdateStrategy.INCREMENTAL
+            )
+            if expect_snapshot:
+                if observation is None or observation.state is not StaSnapshotState.RELEASED:
+                    raise RuntimeError("CPU incremental snapshot was not released")
+            elif observation is not None:
+                raise RuntimeError("unexpected diagnostic snapshot")
             if record != expected:
                 raise RuntimeError("real native run differs from preflight")
             qor = json.loads((root / "feature/qor_summary.json").read_text())
@@ -128,7 +147,14 @@ def main() -> None:
             for name in ("qor_summary.rpt", "power.rpt", f"stage0_{args.case}.sdf"):
                 if not (root / "report" / name).stat().st_size:
                     raise RuntimeError(f"missing native artifact: {name}")
-            runs.append({"record": asdict(record), "qor": qor, "paths": paths})
+            runs.append(
+                {
+                    "record": asdict(record),
+                    "qor": qor,
+                    "paths": paths,
+                    "snapshot": asdict(observation) if observation is not None else None,
+                }
+            )
     finally:
         module.close()
     result = {

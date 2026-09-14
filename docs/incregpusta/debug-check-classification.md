@@ -56,3 +56,15 @@
 | test-only device friend readback / Aux omission、硬件故障隔离程序 | 开发验收；读取实际设备或显式错误实验 | 仅测试程序，不链接生产路径；硬件故障机制要求 ON |
 
 当前边界、实测字节/调用、失败及修复见 [Stage 8 报告](stage8-progress-report.md)。初始化两次 export/pack 与逐批零全量调用分开记录，不能混为一个局部成本承诺。
+
+
+## 2026-09-14 corner fingerprint 修复
+
+| 调用链 / 数据 | 用途与复杂度 | 归属 |
+|---|---|---|
+| Python/native analysis context 类型、非空、规范化校验 | 外部输入约束；O(context UTF-8 字节数) | 始终保留 |
+| native 生产 reference corner identity | 状态绑定；O(context UTF-8 字节数) | 始终保留，编码及 schema 不变 |
+| Python observation corner 对比、释放 observation | 重复验证 native 捕获生命周期；fingerprint O(context 字节数) | ON；对齐 reference-corner-payload，OFF 不采集 |
+| direct/ASCII/UTF-8 生产 KAT、真实 binding baseline 捕获和关闭 | 跨语言契约验收 | 测试入口；不用通用 analysis-context KAT 替代 |
+
+修复与实测见 [CPU 增量测试报告](cpu-incremental-test-report.md)。检查未被删除或降级；旧格式和其他 context 的 fingerprint 仍被拒绝。

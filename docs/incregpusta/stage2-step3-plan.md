@@ -98,7 +98,7 @@ syntax检查顺序：version → token → six hashes；generation为u64 typed f
 
 ### 4.2 Parent `StaAnalysisContext`
 
-`sta_snapshot.py`集中frozen `StaAnalysisContext`、canonical validator/normalizer与两层fingerprint helper，但本步不被session/module/runner导入。公开pure API冻结为：
+`sta_snapshot.py`集中frozen `StaAnalysisContext`、canonical validator/normalizer与context/fingerprint helper，但本步不被session/module/runner导入。公开pure API冻结为：
 
 ```python
 normalize_sta_analysis_context(*, liberty_corner: str, temperature: str | int | float | Decimal, rc_corner: str) -> StaAnalysisContext
@@ -117,26 +117,18 @@ rc_corner: non-empty raw str, no edge whitespace
 
 liberty/RC运行时要求`type(x) is str`。temperature只接受exact `str|int|float|Decimal`，先拒bool及任意自定义`__str__`对象；string拒edge whitespace，numeric/string均用`Decimal(str(x))`解析并拒NaN/Inf，输出无指数/尾零并归一`-0 -> 0`。`validate_sta_analysis_context()`只接受已经canonical的frozen三string对象。不得复用runner里用于artifact label的permissive/sanitized helper。SPEF与`__no_rc_corner__`一致性留Step 7全corner preflight。
 
-两层算法必须分开冻结：`canonical_analysis_context_bytes()`精确复现C++ `canonicalAnalysisContextBytes()`的`analysis-context` domain、length-prefix和UTF-8 payload；`corner_fingerprint()`再精确执行`componentFingerprint("corner-fingerprint", payload)`，即第二层domain后以`appendBytes`加入payload长度和payload。observation的`corner_fingerprint`只比较第二层结果。
+2026-09-14 修正：`canonical_analysis_context_bytes()` 精确复现 C++ `canonicalAnalysisContextBytes()` 的通用 `analysis-context` 编码，但该 payload 不用于生产快照的 corner fingerprint。`corner_fingerprint()` 对齐 `makeReferenceCornerFingerprint()`：内层 `reference-corner-payload` domain/schema、empty marker、三个 UTF-8 字节长度前缀字符串；外层 `corner-fingerprint` domain/schema 与 `appendBytes(payload)`，最后 SHA-256。合法 context 三字段非空，empty marker 为 false。
 
-固定双KAT：
+通用 context 编码的历史 KAT 保留：
 
-```text
-{slow, 25, __no_rc_corner__}
-sha256(canonical_analysis_context_bytes) = 9d72757619bf1225c9888aa02b1f9917c8ea54a475754a8aae5939a7a96a1b83
-corner_fingerprint = 095aeaf315c1c903fb0d166788cf05aa90af0055e41a25ae86e3458ce5f62a2a
-```
+| Context | 通用 payload SHA-256 | 历史通用 payload component（不是生产 observation） |
+|---|---|---|
+| `{slow,25,__no_rc_corner__}` | `9d72757619bf1225c9888aa02b1f9917c8ea54a475754a8aae5939a7a96a1b83` | `095aeaf315c1c903fb0d166788cf05aa90af0055e41a25ae86e3458ce5f62a2a` |
+| `{慢,25,__no_rc_corner__}` | `06402d67b192a27d7caef43a34054c58938df1e20fd5b9aefaffc5bc8486b8dd` | `e3bafb5e252ccc546ba306fd33f30122773840f1bc37a616752ebb96da26eec2` |
 
-UTF-8双KAT另固定多字节长度语义：
+生产 corner fingerprint KAT：direct sentinel 三字段为 `762ed637a7b3f10653e1212cf54480f9d8b319108418663f301a9b45b5e97dcf`；上述 slow context 为 `3e1ae07c69c21623632f49b62cac0604e6b62d5acabdd2ba5c992a08ea2d9de0`；慢 context 为 `71ebe214003ff803fcf733046f836fa7e5b9cf37f2a94de04f1ca42d6cbd2c89`。UTF-8「慢」的长度前缀为 3，不是 code-point 数量。
 
-```text
-{慢, 25, __no_rc_corner__}
-liberty_corner UTF-8 length prefix = 3
-sha256(canonical_analysis_context_bytes) = 06402d67b192a27d7caef43a34054c58938df1e20fd5b9aefaffc5bc8486b8dd
-corner_fingerprint = e3bafb5e252ccc546ba306fd33f30122773840f1bc37a616752ebb96da26eec2
-```
-
-C++ fingerprint contract test与Python测试分别独立固定ASCII和UTF-8两组、每组payload与component两层KAT；Python不得调用C++或复制C++输出文件作为expected，也不得用code-point数量代替UTF-8 byte length。
+Python 与 native 生产组件测试分别独立冻结 KAT；native 通过 `makeReferenceCornerFingerprint` 和 `makeReferenceInputIdentity` 验证。真实 binding 的 CPU/incremental baseline 补充跨语言生命周期验收；不能仅用同源 mock 或通用 encoder 的 KAT 证明生产快照一致。
 
 ## 5. 唯一FIFO helper与metadata contract
 
