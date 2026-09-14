@@ -1,6 +1,6 @@
 # ECC 中复现 IncreGPUSTA 的分阶段实施计划
 
-> 状态：`v2.5-function-completion-plan`；Stage 0–6 清理已本地提交（ecc `356fa09`、ecc-tools `4b0398753`），未发布；Stage 7 CUDA full 已实现并完成真实 GPU 验收，保留未提交差异。Stage 8 targeted device 更新、生产 trace 与双模式真实 GPU 验收已完成；见 [Stage 8 报告](incregpusta/stage8-progress-report.md)。Stage 7–8 仍保留未提交差异。见 [Stage 7 报告](incregpusta/stage7-progress-report.md)、[清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。历史验收记录保留；本次 [CUDA CI 验证报告](incregpusta/cuda-ci-validation-20260914.md) 记录了三个真实设计的支持缺口。Stage 10（补齐功能）和 Stage 11（原 Stage 10，生产集成）尚未实施。
+> 状态：`v2.5-function-completion-plan`；Stage 0–6 清理已本地提交（ecc `356fa09`、ecc-tools `4b0398753`），Stage 7–8 已完成真实 GPU 验收并提交（ecc `872d474`、ecc-tools `044399b41`）。Stage 9 hybrid CUDA incremental 实现与本机验收完成，阶段性提交为 ecc `a8697e5`、ecc-tools `73aa7816f`；本次验收收尾仍保留未提交差异，均未 push。见 [Stage 9 报告](incregpusta/stage9-progress-report.md)、[Stage 8 报告](incregpusta/stage8-progress-report.md)、[Stage 7 报告](incregpusta/stage7-progress-report.md)、[清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。历史验收记录保留；本次 [CUDA CI 验证报告](incregpusta/cuda-ci-validation-20260914.md) 记录了三个真实设计的支持缺口。Stage 10（补齐功能）和 Stage 11（原 Stage 10，生产集成）尚未实施。
 > 文档范围：本计划及阶段说明仅适用于 `IncreGPUSTA`；相关文档维护在 `ecc/docs`，不修改仓库通用 README。
 > 目标仓库：`/home/shigure/code/ecc`
 > 强制开发分支：`IncreGPUSTA`
@@ -972,6 +972,8 @@ buffer-count sweep 至少覆盖 1、10、100、1K、10K、100K；同时报告真
 报告 kernel launch、传输字节、allocation、capacity fallback 和 device validation 方法。
 
 ### 阶段 9：Hybrid incremental levelization 与端到端 GPU incremental
+
+状态：2026-09-09 已完成 canonical CPU mixed → GPU reconstruction → full GPU propagation → 原子 native/device publish。独立设计/代码审查、CUDA ON/OFF 与默认无 CUDA 回归、fixed trace 双 full oracle、硬件故障/恢复、sanitizer、真实调用/分配/子进程剖析通过；全仓类型失败另行如实记录。见 [详细计划](incregpusta/stage9-detailed-plan.md) 和 [实施与验收报告](incregpusta/stage9-progress-report.md)。通用未编辑 session 为 baseline_only/full，physical/greedy 集成仍属 Stage 11。
 
 **先分析**
 
