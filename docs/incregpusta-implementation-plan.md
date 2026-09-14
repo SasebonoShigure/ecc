@@ -1,10 +1,10 @@
 # ECC 中复现 IncreGPUSTA 的分阶段实施计划
 
-> 状态：`v2.3-cuda-targeted`；Stage 0–6 清理已本地提交（ecc `356fa09`、ecc-tools `4b0398753`），未发布；Stage 7 CUDA full 已实现并完成真实 GPU 验收，保留未提交差异。Stage 8 targeted device 更新、生产 trace 与双模式真实 GPU 验收已完成；见 [Stage 8 报告](incregpusta/stage8-progress-report.md)。Stage 7–8 仍保留未提交差异。见 [Stage 7 报告](incregpusta/stage7-progress-report.md)、[清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。历史验收记录保留。
+> 状态：`v2.5-function-completion-plan`；Stage 0–6 清理已本地提交（ecc `356fa09`、ecc-tools `4b0398753`），未发布；Stage 7 CUDA full 已实现并完成真实 GPU 验收，保留未提交差异。Stage 8 targeted device 更新、生产 trace 与双模式真实 GPU 验收已完成；见 [Stage 8 报告](incregpusta/stage8-progress-report.md)。Stage 7–8 仍保留未提交差异。见 [Stage 7 报告](incregpusta/stage7-progress-report.md)、[清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。历史验收记录保留；本次 [CUDA CI 验证报告](incregpusta/cuda-ci-validation-20260914.md) 记录了三个真实设计的支持缺口。Stage 10（补齐功能）和 Stage 11（原 Stage 10，生产集成）尚未实施。
 > 文档范围：本计划及阶段说明仅适用于 `IncreGPUSTA`；相关文档维护在 `ecc/docs`，不修改仓库通用 README。
 > 目标仓库：`/home/shigure/code/ecc`
 > 强制开发分支：`IncreGPUSTA`
-> 日期：2026-08-19；最近更新：2026-09-08
+> 日期：2026-08-19；最近更新：2026-09-14
 
 ## 1. 目标、范围与结论
 
@@ -120,7 +120,7 @@ Next gate:
 6. GPU 用 D2D 复制未变旧 level、用 batched H2D 插入新节点，并重建 `node2level`；
 7. 之后运行已有的全图 GPU forward/backward timing propagation。
 
-论文没有给出 GPU affected-cone AT/RAT propagation 算法。其 Sec. II-C 反而说明识别 affected cone 的 GPU 开销可能抵消选择性传播收益。核心 CPU 路径也先保持 full propagation，使它与论文的 GPU 路径同构。CPU/GPU affected-cone propagation 均只列为论文复现后的独立工程扩展，不是阶段 0–10 的前置条件，也不混入核心四模式 speedup。
+论文没有给出 GPU affected-cone AT/RAT propagation 算法。其 Sec. II-C 反而说明识别 affected cone 的 GPU 开销可能抵消选择性传播收益。核心 CPU 路径也先保持 full propagation，使它与论文的 GPU 路径同构。CPU/GPU affected-cone propagation 均只列为论文复现后的独立工程扩展，不是阶段 0–11 的前置条件，也不混入核心四模式 speedup。
 
 Greedy buffer insertion 是论文 case study，用于产生真实结构变更，不是核心图算法。ECC 当前有 iZH fanout buffer insertion，但它不是 timing-driven greedy loop，也没有在每次修改后调用 general iSTA，因此仍需增加确定性 greedy harness。
 
@@ -331,7 +331,7 @@ src/operation/iSTA/benchmark/
 src/operation/iZH/source/module/greedy_buffer_inserter/
 ~~~
 
-iZH 只负责创建 instance/net、重连 pin、合法化和明确的物理 apply/undo primitive。slack 排序、候选评分、STA session 循环和 trace orchestration 初期属于 benchmark/experimental timing-opt coordinator；阶段 10 根据真实集成再决定长期 owner。iSTA 只负责 timing graph/session。早期 synthetic harness 可直接构造 canonical timing deltas，但必须与 real-design workload 分开标记。
+iZH 只负责创建 instance/net、重连 pin、合法化和明确的物理 apply/undo primitive。slack 排序、候选评分、STA session 循环和 trace orchestration 初期属于 benchmark/experimental timing-opt coordinator；阶段 11 根据真实集成再决定长期 owner。iSTA 只负责 timing graph/session。早期 synthetic harness 可直接构造 canonical timing deltas，但必须与 real-design workload 分开标记。
 
 ### 5.4 Session 生命周期
 
@@ -356,11 +356,11 @@ create
 - coordinator 独占 prepare→validate→stage→execute→verify→publish 状态机；iZH 不拥有 STA session，iSTA 不拥有物理优化策略；
 - publish 前失败直接丢弃 shadow/reversible staged state，不改变 committed generation；
 - publish 后若发生不可恢复异常，必须 poison/invalid session，并从最后 committed design snapshot 做显式 full rebuild/reinitialize；禁止继续增量运行；
-- 阶段 0–9 的 semantic timing harness 中，isolated iSTA Database、host CSR 和 device CSR 的可见 topology/timing 在同一 publish 边界切换；它不修改生产 `EngineDB/IDB`，不得宣称完成物理 insertion；
+- 阶段 0–10 的 semantic timing harness 中，isolated iSTA Database、host CSR 和 device CSR 的可见 topology/timing 在同一 publish 边界切换；它不修改生产 `EngineDB/IDB`，不得宣称完成物理 insertion；
 - session invalidation、capacity growth、unsupported edit 和 full fallback 都进入 telemetry；
 - signoff 多 corner 不能错误共享 corner-specific timing arrays；是否共享只读 topology 必须单独证明后再做。
 
-阶段 10 的 real-design 路径必须把事务扩展为：
+阶段 11 的 real-design 生产集成路径必须把事务扩展为：
 
 ~~~text
 EngineDB/IDB topology
@@ -489,7 +489,7 @@ normalize/prepare 必须：
 
 ## 7. Greedy buffer insertion 驱动
 
-由于 ECC 没有 general iSTA 的活跃迭代 consumer，阶段 4 必须实现一个确定性 greedy buffer insertion fixed-trace harness，并在阶段 10 增加 closed-loop、决定是否接入实验 `TIMING_OPT`。
+由于 ECC 没有 general iSTA 的活跃迭代 consumer，阶段 4 必须实现一个确定性 greedy buffer insertion fixed-trace harness，并在阶段 11 增加 closed-loop、决定是否接入实验 `TIMING_OPT`。
 
 ### 7.1 论文可复现部分
 
@@ -1008,7 +1008,38 @@ PreparedBatch
 
 明确 propagation 是全图；分别报告 update、levelization、propagation、scatter 和 total。
 
-### 阶段 10：生产集成、CI 分层与性能结论
+### 阶段 10：补齐功能与真实设计验证
+
+状态：尚未实施。范围依据 [2026-09-14 CUDA CI 验证报告](incregpusta/cuda-ci-validation-20260914.md)：xtea、usb、zipdiv 的 CPU/full 已通过，CUDA/full 与 CUDA/incremental 均因不支持语义被拒绝，尚未取得这些设计的 CUDA 等价或实际增量证据。
+
+**先分析**
+
+- 逐项分析六类语义：顺序实例（`sequential_instance`）、顺序发射（`sequential_launch`）、时序检查（`timing_check`）、CRPR（`crpr`）、时钟树扇出（`clock_tree_fanout`）、条件时序弧（`conditional_timing_arc`）；
+- 以 native CPU STA 为语义依据，追踪共享 CSR 表达、CPU reference/incremental 和 CUDA 路径中的导出、计算、结果发布及必要失效处理，不能仅移除 CUDA 入口的拒绝；
+- 明确 baseline clock state 与 data-only edits 的依赖、更新和失效边界；本阶段不扩展为完整 native CPU STA 能力对齐，physical/greedy 集成、跨层事务和正式性能结论仍由阶段 11 负责。
+
+**交付**
+
+- 补齐六类语义所需的共享 CSR、CPU reference/incremental 与 CUDA 能力，沿用现有模式接口、默认 CPU/full 和默认 OFF 的 `ECC_INCREGPUSTA_DEBUG_CHECKS`；
+- 仅在实现及针对性验证完成后解除对应 unsupported 拒绝；保留范围外能力的明确拒绝，以及必要输入、生命周期、数值、cycle、回滚与恢复检查；
+- 为 xtea、usb、zipdiv 准备相同输入下的四模式验证及真实、多批次 data-only buffer insertion frozen trace；编辑提交在 isolated iSTA Database 与 host/device CSR 内完成，不宣称生产 EngineDB/IDB 物理 insertion；
+- 完整 oracle 和逐字段诊断比较限于开发验收，生产路径内的重型诊断仅 ON 执行；普通性能入口保持 OFF、不启动 oracle，ON 构建在采样前明确拒绝。
+
+**正确性门**
+
+- 保留三个设计的原综合网表、约束和 ICS55 配置，使用 post-synthesis、无 SPEF 输入；不得删除寄存器、修改约束、关闭必要检查或抽取组合子电路来绕过限制；
+- 使用相同依赖、GCC/CUDA 和 Release 优化设置的独立 OFF/ON 构建；隔离 native binding，并核对实际加载路径及只读构建状态。每个设计分别验证 CPU/full、CPU/incremental、CUDA/full、CUDA/incremental；
+- 未编辑初始化单独记录为 baseline/baseline_only，不计为增量批次；每个设计必须完成多批次 frozen trace，目标 incremental 路径实际执行 incremental，不得静默退回 full；
+- 每批与独立 fresh native CPU/full 比较拓扑、timing、winner 和适用的时序检查结果，同时验证公开 QOR、timing paths、level 合法性及 requested/executed mode、fallback；level 合法性不要求不同合法层次划分逐字段相同；
+- 六类语义的针对性测试、失败回滚、恢复后继续提交和 CUDA 内存检查通过；独立开发验收比较 OFF/ON 的功能结果，排除计时、诊断字段与 session 实例身份，完整比较不加入普通性能运行。
+
+**阶段报告重点**
+
+记录六类能力的支持矩阵、三设计四模式结果、实际增量证据、失败与修复及剩余限制。分别标明“通过”“不支持”“失败”“未执行”，不得将正确拒绝或 baseline 成功计为增量验收通过；未取得的等价性或性能证据如实列出。
+
+### 阶段 11：生产集成、CI 分层与性能结论
+
+状态：尚未实施；由原阶段 10 顺延，承接阶段 10 的功能与真实设计验收结果。
 
 **先分析**
 
@@ -1115,7 +1146,7 @@ uv run pytest test/integration/test_incremental_sta_flow.py \
 - 多 corner 共享 device topology；
 - 与外部 Sizer/OpenSTA 内部迭代深度耦合。
 
-只有阶段 9 正确性稳定且阶段 10 数据充分后，才可单独提案。即使将来增加 `auto`，手动 full/incremental 选择仍必须保留。
+只有阶段 9–10 正确性稳定且阶段 11 数据充分后，才可单独提案。即使将来增加 `auto`，手动 full/incremental 选择仍必须保留。
 
 ## 14. 本计划自身的审阅记录
 
