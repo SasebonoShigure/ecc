@@ -63,7 +63,7 @@ GPU reconstruction 计时必须从 CPU build/Kahn/plan 完成后开始，报告 
 
 仅真实 old-level order conflict 支持显式 `full_with_record`。重试前释放失败的 detached device candidate，再针对同一健康 owner 执行 full；actual cycle、数值/容量及 CUDA 错误不得伪装 fallback 成功。详细 rejected attempt 只记录已实际发生的失败，默认 Error 拒绝后仍须允许健康批次。损坏 CUDA context 不复用，恢复验收在新的健康进程按实际 mixed 模式重放。
 
-ON 使用 `cuda_targeted_trace_controller.py --strategy incremental` 保留逐 prefix 独立 CPU/full、CUDA/full、level 合法性、winner/source isolation 和恢复等价；OFF 同一入口加 `--performance`，先核验真实 build-info，再仅执行目标 workload。批次数必须绑定请求 trace，generation 连续；不能相信子进程自己缩减后的 prefix。通用 Python session 的未编辑初始化如实记录 baseline_only/full；通用 physical/greedy 集成仍属 Stage 10。
+ON 使用 `cuda_targeted_trace_controller.py --strategy incremental` 保留逐 prefix 独立 CPU/full、CUDA/full、level 合法性、winner/source isolation 和恢复等价；OFF 同一入口加 `--performance`，先核验真实 build-info，再仅执行目标 workload。批次数必须绑定请求 trace，generation 连续；不能相信子进程自己缩减后的 prefix。通用 Python session 的未编辑初始化如实记录 baseline_only/full；通用 physical/greedy 集成仍属 Stage 11。
 
 验收 Python binding 必须检查实际只读 CUDA/debug 构建状态。当前 ecc_py 链接到共用 bin，多个构建的链接和测试应顺序执行，分别保存并选择对应构建产物；不能因 Python 导入成功就认定来自指定 ON/OFF 配置。CUDA 启用构建的无设备拒绝在独立 `CUDA_VISIBLE_DEVICES=-1` 进程验证；默认 CUDA 关闭构建另做回归。
 
@@ -73,3 +73,13 @@ ON 使用 `cuda_targeted_trace_controller.py --strategy incremental` 保留逐 p
 corner fingerprint 的生产定义为 `makeReferenceCornerFingerprint()` 的 `reference-corner-payload`（含 empty marker）再包装 `corner-fingerprint`；通用 `canonicalAnalysisContextBytes()` 编码仅表示 context，本身不是生产 corner payload。两端测试须覆盖生产 identity 构造和真实 binding 快照的捕获/释放，不能只比较通用 helper 的已知答案或由待测 Python 函数生成的 mock。
 
 修改编码必须核对 domain/schema、标记、字节长度和 UTF-8；必要 context 校验及 native 身份绑定始终保留。Python snapshot observation 的额外匹配仅 ON，OFF 不因修复而采集诊断。此次修复保持 native schema/identity 值不变，不接受旧的错误 Python 指纹。
+
+## Stage 10 顺序逻辑与真实设计
+
+clock、CTQ、timing-check 原始表、physical/effective clock、CRPR 身份及每批 Q 负载更新属于功能数据；owner/session/generation、有限数值、容量、cycle 和回滚检查始终执行。沿用 ideal-clock contract 与 native 条件候选选择，不将 propagated clock 或条件表达式求值推断为已支持。
+
+真实输入保留有序 LEF/Liberty 列表和完整 analysis context，frozen trace 使用 v2；严格 --replay 只读取实际编辑，生成 trace 成功不等于增量验收。分别验证 Q 负载和 D 输入编辑，每批对独立 fresh native CPU/full；初始化单列 baseline_only。
+
+公开结果来自实际 committed timing 的 scatter，清除旧 path groups 后调用 analyzePropagatedTiming，不得重新 native propagation 掩盖差异。跨构建 readback、临时 native 副本、public 与恢复等价仅链接显式测试程序，可验证 OFF/ON；生产重型诊断仍仅 ON，普通性能入口拒绝 ON、不启动 oracle。
+
+恢复记录区分重放批次和后续新批次。CUDA 新 session 重建不等于原地修复故障 context；测试命名不得暗示存在未实现的生产恢复接口。验收结果见 [Stage 10 报告](stage10-progress-report.md)。

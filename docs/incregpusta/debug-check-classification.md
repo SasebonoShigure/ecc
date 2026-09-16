@@ -1,6 +1,6 @@
-# Stage 0–9 开发检查分类
+# Stage 0–10 开发检查分类
 
-状态：本表已同步 2026-09-08 冗余清理；当前结果见 [清理报告](stage0-6-redundancy-cleanup-report.md)，此前诊断分离结果与限制见 [实施报告](debug-checks-implementation-report.md) 和 [实测证据](debug-check-acceptance.json)。开发规则见 [development-guidelines.md](development-guidelines.md)。复杂度中的 N/E 为节点/边数，B 为累计批次数，D 为本批编辑规模。
+状态：已补充 2026-09-15 Stage 10 分类；以下保留 2026-09-08 冗余清理及后续阶段记录。当前结果见 [清理报告](stage0-6-redundancy-cleanup-report.md)，此前诊断分离结果与限制见 [实施报告](debug-checks-implementation-report.md) 和 [实测证据](debug-check-acceptance.json)。开发规则见 [development-guidelines.md](development-guidelines.md)。复杂度中的 N/E 为节点/边数，B 为累计批次数，D 为本批编辑规模。
 
 | 调用链 / 数据 | 用途与复杂度 | 归属 |
 |---|---|---|
@@ -86,3 +86,16 @@
 | direct/ASCII/UTF-8 生产 KAT、真实 binding baseline 捕获和关闭 | 跨语言契约验收 | 测试入口；不用通用 analysis-context KAT 替代 |
 
 修复与实测见 [CPU 增量测试报告](cpu-incremental-test-report.md)。检查未被删除或降级；旧格式和其他 context 的 fingerprint 仍被拒绝。
+
+## Stage 10 顺序逻辑与真实设计补充
+
+| 调用链 / 数据 | 用途与复杂度 | 归属 |
+|---|---|---|
+| clock owners、physical/effective lanes、deferred CK/Q、CRPR、check/CTQ 原始表 | 实际计算和发布；随 N/E、table 与 timing/path storage 增长 | 始终保留；CPU/CUDA 独立传播，无 CPU timing shadow |
+| Q net load、既有 CTQ payload 更新、D slew/check seed、局部 expected/边界/finite/cycle | 编辑后 timing 与原子提交；局部更新和必要传播遍历 | 始终保留，不以 debug 关闭功能重算 |
+| 外部有序 LEF/Liberty、完整 context、严格 replay、来源身份 | 加载与适用性；O(输入大小)，文件身份读取随总字节数增长 | 始终保留；source isolation 独立证明仅 ON |
+| canonical load/timing 全检、clock/CRPR/winner/level 比较、fresh prefix oracle 与 receipt | 独立证明；额外 O(N+E+table+timing storage) 或完整重放 | ON 诊断入口 |
+| 显式跨构建设备 readback、临时 native 副本、scatter 后 public、恢复前后等价 | 验收 OFF/ON；整份状态复制、比较与报告成本 | 仅测试程序，不链接生产或普通性能入口 |
+| 实际按模式重放、新 session 绑定、恢复后继续提交、rollback | 真实生命周期；成本随重放批次和工作量增长 | 始终保留；故障注入仅 ON，完整比较仅开发测试 |
+
+结果和实际剖析见 [Stage 10 报告](stage10-progress-report.md)。测试输出拒绝覆盖已有路径；未执行 oracle 的性能输出继续记录 correctness_comparison=not_run。

@@ -1,10 +1,10 @@
 # ECC 中复现 IncreGPUSTA 的分阶段实施计划
 
-> 状态：`v2.5-function-completion-plan`；Stage 0–6 清理已本地提交（ecc `356fa09`、ecc-tools `4b0398753`），Stage 7–8 已完成真实 GPU 验收并提交（ecc `872d474`、ecc-tools `044399b41`）。Stage 9 hybrid CUDA incremental 实现与本机验收完成，阶段性提交为 ecc `a8697e5`、ecc-tools `73aa7816f`；本次验收收尾仍保留未提交差异，均未 push。见 [Stage 9 报告](incregpusta/stage9-progress-report.md)、[Stage 8 报告](incregpusta/stage8-progress-report.md)、[Stage 7 报告](incregpusta/stage7-progress-report.md)、[清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。历史验收记录保留；本次 [CUDA CI 验证报告](incregpusta/cuda-ci-validation-20260914.md) 记录了三个真实设计的支持缺口。Stage 10（补齐功能）和 Stage 11（原 Stage 10，生产集成）尚未实施。
+> 状态：`v2.6-stage10-functional-acceptance`；Stage 0–6 清理已本地提交（ecc `356fa09`、ecc-tools `4b0398753`），Stage 7–8 已完成真实 GPU 验收并提交（ecc `872d474`、ecc-tools `044399b41`）。Stage 9 hybrid CUDA incremental 实现与本机验收完成，阶段性提交为 ecc `a8697e5`、ecc-tools `73aa7816f`；随后 Stage 9 状态文档已提交至 ecc fc6379e，均未 push。见 [Stage 9 报告](incregpusta/stage9-progress-report.md)、[Stage 8 报告](incregpusta/stage8-progress-report.md)、[Stage 7 报告](incregpusta/stage7-progress-report.md)、[清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。历史验收记录保留；本次 [CUDA CI 验证报告](incregpusta/cuda-ci-validation-20260914.md) 记录了三个真实设计的支持缺口。Stage 10 六类语义及三设计四模式、真实 Q/D 两批、OFF/ON 与恢复功能验收完成，见 [Stage 10 报告](incregpusta/stage10-progress-report.md)；lint/type 的未通过项已记录。Stage 10 已于 2026-09-16 提交（ecc-tools 6921b6089），Stage 11（原 Stage 10，生产集成）尚未实施。
 > 文档范围：本计划及阶段说明仅适用于 `IncreGPUSTA`；相关文档维护在 `ecc/docs`，不修改仓库通用 README。
 > 目标仓库：`/home/shigure/code/ecc`
 > 强制开发分支：`IncreGPUSTA`
-> 日期：2026-08-19；最近更新：2026-09-14
+> 日期：2026-08-19；最近更新：2026-09-16
 
 ## 1. 目标、范围与结论
 
@@ -1012,7 +1012,7 @@ PreparedBatch
 
 ### 阶段 10：补齐功能与真实设计验证
 
-状态：尚未实施。范围依据 [2026-09-14 CUDA CI 验证报告](incregpusta/cuda-ci-validation-20260914.md)：xtea、usb、zipdiv 的 CPU/full 已通过，CUDA/full 与 CUDA/incremental 均因不支持语义被拒绝，尚未取得这些设计的 CUDA 等价或实际增量证据。
+状态：2026-09-15 实现与功能验收完成；2026-09-16 已提交（ecc-tools 6921b6089）。六类语义在既有 ideal-clock contract 下接通；xtea、usb、zipdiv 完成四模式 baseline、真实 Q/D 两批编辑、独立 fresh native 对照、OFF/ON 等价及恢复后继续提交。范围与未通过的 lint/type 检查见 [Stage 10 报告](incregpusta/stage10-progress-report.md)，实施方案见 [详细计划](incregpusta/stage10-detailed-plan.md)。[2026-09-14 CUDA CI 报告](incregpusta/cuda-ci-validation-20260914.md) 保留为实施前支持缺口的历史证据。
 
 **先分析**
 
