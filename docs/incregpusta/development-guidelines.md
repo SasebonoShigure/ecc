@@ -32,7 +32,7 @@ Factory 在构造只读 verified stage 前执行最终 ON aggregate proof；publ
 
 ON 使用现有 `dual_csr_trace_controller.py` 或 `incremental_levelization_controller.py`，以 `--probe <ON probe> --trace <trace> --run-root <existing directory> --timeout-seconds 900` 保存独立 targeted/fresh 结果和日志。旧诊断 timing smoke 已删除；重复性能采样使用 OFF smoke，构建信息只从 native `build-info` 获取。
 
-Stage 6 每批只输出一份 canonical graph/timing，process 为 `ista-stage6-trace-process/2.0.0`，verdict 为 `ista-stage6-differential-verdict/2.0.0`。值等价与 level 合法性读取同一对象；它们证明不同性质，应同时保留。共享 JSON 编码不得变成共享 oracle 计算。
+Stage 6 每批只输出一份 canonical graph/timing，process 为 `ista-stage6-trace-process/3.0.0`，verdict 为 `ista-stage6-differential-verdict/2.0.0`。值等价与 level 合法性读取同一对象；它们证明不同性质，应同时保留。共享 JSON 编码不得变成共享 oracle 计算。
 
 ## Stage 7 CUDA 路径
 
@@ -83,3 +83,11 @@ clock、CTQ、timing-check 原始表、physical/effective clock、CRPR 身份及
 公开结果来自实际 committed timing 的 scatter，清除旧 path groups 后调用 analyzePropagatedTiming，不得重新 native propagation 掩盖差异。跨构建 readback、临时 native 副本、public 与恢复等价仅链接显式测试程序，可验证 OFF/ON；生产重型诊断仍仅 ON，普通性能入口拒绝 ON、不启动 oracle。
 
 恢复记录区分重放批次和后续新批次。CUDA 新 session 重建不等于原地修复故障 context；测试命名不得暗示存在未实现的生产恢复接口。验收结果见 [Stage 10 报告](stage10-progress-report.md)。
+
+## 诊断数据的内存边界
+
+来源隔离记录文件顺序、角色、名称、路径、大小和分块 SHA-256；不内嵌工艺文件字节或十六进制。保留前后比较、输入内容核对和篡改测试，原始文件作为独立证据。摘要读取失败、短读和大小变化必须报错。
+
+Stage 5/6 的每批 functional/structural 只由 published_observations 持有，transaction_receipt 单独保存提交与回滚证明。Stage 5 process v2、Stage 6 process v3、Stage 4 source-bearing probe v2 同步迁移消费者，不保留旧格式包装。生产身份与 OFF 性能格式不变。
+
+大 JSON 直接写入输出流；来源规范化使用只读浅层视图。跨 prefix 只保留后续完整比较实际需要的 observations，及时释放已比较的 fresh、transaction 和来源对象。独立 oracle、事务隔离与真实恢复数据不能因节省内存而删除。

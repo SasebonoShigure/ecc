@@ -99,3 +99,14 @@
 | 实际按模式重放、新 session 绑定、恢复后继续提交、rollback | 真实生命周期；成本随重放批次和工作量增长 | 始终保留；故障注入仅 ON，完整比较仅开发测试 |
 
 结果和实际剖析见 [Stage 10 报告](stage10-progress-report.md)。测试输出拒绝覆盖已有路径；未执行 oracle 的性能输出继续记录 correctness_comparison=not_run。
+
+## 2026-09-16 诊断内存清理
+
+| 数据 / 检查 | 用途与复杂度 | 归属 |
+|---|---|---|
+| 文件顺序、角色、名称、路径、大小和 SHA-256 | 来源隔离；读取 O(文件字节数)，摘要工作缓冲固定 64 KiB，记录 O(文件数) | ON；替代完整字节与 hex 副本，保留输入核对和篡改检测 |
+| SHA-256 的必要身份计算 | 身份值不变；直接处理完整块，最多复制 128 字节尾部 | 保持原调用归属，不改变开关或身份格式 |
+| published_observations + transaction_receipt | 每批唯一 functional/structural；独立提交、回滚、跨 prefix 证明 | ON；删除同源 exact_receipt.published 副本，完整原生 validator 保留 |
+| JSON 写出、来源视图、跨 prefix 局部对象 | 直接写流、浅层只读规范化、释放已完成比较的数据 | 诊断工具；不新增缓存或运行时选项 |
+
+结果见 [内存清理与回归报告](memory-cleanup-20260916.md)。
