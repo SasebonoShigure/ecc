@@ -263,6 +263,47 @@ class IncrementalStaSession:
 
     @property
     def snapshot_observation(self) -> StaSnapshotObservation | None:
+        if (
+            not self._debug_checks
+            or self._closed
+            or self._native_session is None
+            or self._snapshot_observation is not None
+        ):
+            return self._snapshot_observation
+        native_session = self._native_session
+        if native_session.state != "baseline_executed":
+            return self._snapshot_observation
+        raw_observation = self._call_native(lambda: native_session.csr_snapshot_observation)
+        observation = snapshot_observation_from_mapping(raw_observation)
+        if (
+            self._request.backend is StaBackend.CUDA
+            or self._request.update_strategy is StaUpdateStrategy.FULL
+        ):
+            if observation is not None:
+                raise StaExecutionContractError(
+                    "this native STA mode must not expose a CPU snapshot observation"
+                )
+        else:
+            if observation is None:
+                raise StaExecutionContractError(
+                    "cpu/incremental native STA session requires a ready snapshot observation"
+                )
+            if (
+                observation.state is not StaSnapshotState.READY
+                or observation.identity.graph_generation != 0
+                or observation.identity.session_token != self._session_token
+                or observation.identity.corner_fingerprint
+                != corner_fingerprint(self._analysis_context)
+                or observation.last_rejection is not None
+                or observation.last_invalidation is not None
+                or observation.timing_ms.reference is not None
+                or observation.timing_ms.scatter is not None
+            ):
+                raise StaExecutionContractError(
+                    "native initial snapshot observation violates the capture contract"
+                )
+        self._active_observation = observation
+        self._snapshot_observation = observation
         return self._snapshot_observation
 
     @property
@@ -318,39 +359,6 @@ class IncrementalStaSession:
             raise StaExecutionContractError(
                 "native STA execution record differs from the preflight outcome"
             )
-        if not self._debug_checks:
-            return record
-        raw_observation = self._call_native(lambda: native_session.csr_snapshot_observation)
-        observation = snapshot_observation_from_mapping(raw_observation)
-        if (
-            self._request.backend is StaBackend.CUDA
-            or self._request.update_strategy is StaUpdateStrategy.FULL
-        ):
-            if observation is not None:
-                raise StaExecutionContractError(
-                    "this native STA mode must not expose a CPU snapshot observation"
-                )
-        else:
-            if observation is None:
-                raise StaExecutionContractError(
-                    "cpu/incremental native STA session requires a ready snapshot observation"
-                )
-            if (
-                observation.state is not StaSnapshotState.READY
-                or observation.identity.graph_generation != 0
-                or observation.identity.session_token != self._session_token
-                or observation.identity.corner_fingerprint
-                != corner_fingerprint(self._analysis_context)
-                or observation.last_rejection is not None
-                or observation.last_invalidation is not None
-                or observation.timing_ms.reference is not None
-                or observation.timing_ms.scatter is not None
-            ):
-                raise StaExecutionContractError(
-                    "native initial snapshot observation violates the capture contract"
-                )
-        self._active_observation = observation
-        self._snapshot_observation = observation
         return record
 
     def close(self) -> None:
@@ -364,7 +372,7 @@ class IncrementalStaSession:
                 return
 
             close_result = self._call_native(native_session.close)
-            if not self._debug_checks:
+            if not self._debug_checks or active_observation is None:
                 if close_result is not None:
                     raise StaExecutionContractError(
                         "native STA session close must return None on success"

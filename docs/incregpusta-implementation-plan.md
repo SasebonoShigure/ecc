@@ -1,10 +1,10 @@
 # ECC 中复现 IncreGPUSTA 的分阶段实施计划
 
-> 状态：`v2.8-high-performance-stages11-14`；Stage 0–6 清理已本地提交（ecc `356fa09`、ecc-tools `4b0398753`），Stage 7–8 已完成真实 GPU 验收并提交（ecc `872d474`、ecc-tools `044399b41`）。Stage 9 hybrid CUDA incremental 实现与本机验收完成，阶段性提交为 ecc `a8697e5`、ecc-tools `73aa7816f`；随后 Stage 9 状态文档已提交至 ecc fc6379e，均未 push。见 [Stage 9 报告](incregpusta/stage9-progress-report.md)、[Stage 8 报告](incregpusta/stage8-progress-report.md)、[Stage 7 报告](incregpusta/stage7-progress-report.md)、[清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。历史验收记录保留；本次 [CUDA CI 验证报告](incregpusta/cuda-ci-validation-20260914.md) 记录了三个真实设计的支持缺口。Stage 10 六类语义及三设计四模式、真实 Q/D 两批、OFF/ON 与恢复功能验收完成，见 [Stage 10 报告](incregpusta/stage10-progress-report.md)；lint/type 的未通过项已记录。Stage 10 已于 2026-09-16 提交（ecc-tools 6921b6089）；当前基线为完成内存清理后的 ecc `dbb1c8e`、ecc-tools `fec270b8a`。原 Stage 11 实现已撤回。新 Stage 11–14 均尚未实施：先精简生产路径与存储/事务，再完成 CUDA 并行和核心性能验收，最后生产集成与正式性能评估；本轮只调整计划。
+> 状态：`v2.9-stage11-storage-transactions`；Stage 0–6 清理已本地提交（ecc `356fa09`、ecc-tools `4b0398753`），Stage 7–8 已完成真实 GPU 验收并提交（ecc `872d474`、ecc-tools `044399b41`）。Stage 9 hybrid CUDA incremental 实现与本机验收完成，阶段性提交为 ecc `a8697e5`、ecc-tools `73aa7816f`；随后 Stage 9 状态文档已提交至 ecc fc6379e，均未 push。见 [Stage 9 报告](incregpusta/stage9-progress-report.md)、[Stage 8 报告](incregpusta/stage8-progress-report.md)、[Stage 7 报告](incregpusta/stage7-progress-report.md)、[清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。历史验收记录保留；本次 [CUDA CI 验证报告](incregpusta/cuda-ci-validation-20260914.md) 记录了三个真实设计的支持缺口。Stage 10 六类语义及三设计四模式、真实 Q/D 两批、OFF/ON 与恢复功能验收完成，见 [Stage 10 报告](incregpusta/stage10-progress-report.md)；lint/type 的未通过项已记录。Stage 10 已于 2026-09-16 提交（ecc-tools 6921b6089）；Stage 10 后内存清理的提交为 ecc `dbb1c8e`、ecc-tools `fec270b8a`。原 Stage 11 实现已撤回。新 Stage 11 已按批准的[详细计划](incregpusta/stage11-detailed-plan.md)完成功能、事务安全和默认路径剖析验收，按用户授权本地提交，未 push；既有类型检查失败和实际限制见[实施报告](incregpusta/stage11-progress-report.md)。Stage 12–14 尚未实施：下一阶段完成 CUDA 并行和核心性能验收，再做生产集成与正式性能评估。
 > 文档范围：本计划及阶段说明仅适用于 `IncreGPUSTA`；相关文档维护在 `ecc/docs`，不修改仓库通用 README。
 > 目标仓库：`/home/shigure/code/ecc`
 > 强制开发分支：`IncreGPUSTA`
-> 日期：2026-08-19；最近更新：2026-09-17
+> 日期：2026-08-19；最近更新：2026-09-21
 
 ## 1. 目标、范围与结论
 
@@ -1075,7 +1075,7 @@ PreparedBatch
 
 ### 阶段 11：生产路径精简、持久存储与增量事务
 
-状态：尚未实施；以 Stage 10 完成及内存清理后的 ecc `dbb1c8e`、ecc-tools `fec270b8a` 为基线。仅改变既有语义的执行与存储方式，不扩展 STA 支持范围。
+状态：2026-09-21 完成功能、事务安全和默认路径剖析验收，按用户授权本地提交，未 push；实现起点为计划重排提交 ecc `7cd666f`、ecc-tools `fec270b8a`，保留 Stage 10 及内存清理的历史基线。仅改变既有语义的执行与存储方式，不扩展 STA 支持范围。
 
 **先分析**
 

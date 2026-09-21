@@ -1,6 +1,6 @@
-# Stage 0–10 开发检查分类
+# Stage 0–11 开发检查分类
 
-状态：已补充 2026-09-15 Stage 10 分类；以下保留 2026-09-08 冗余清理及后续阶段记录。当前结果见 [清理报告](stage0-6-redundancy-cleanup-report.md)，此前诊断分离结果与限制见 [实施报告](debug-checks-implementation-report.md) 和 [实测证据](debug-check-acceptance.json)。开发规则见 [development-guidelines.md](development-guidelines.md)。复杂度中的 N/E 为节点/边数，B 为累计批次数，D 为本批编辑规模。
+状态：Stage 11 实施中，尚未验收。下表及 Stage 7–10 小节保留历史分类；被替换实现以末尾 Stage 11 分类为准。以下保留 2026-09-08 冗余清理及后续阶段记录。当前结果见 [清理报告](stage0-6-redundancy-cleanup-report.md)，此前诊断分离结果与限制见 [实施报告](debug-checks-implementation-report.md) 和 [实测证据](debug-check-acceptance.json)。开发规则见 [development-guidelines.md](development-guidelines.md)。复杂度中的 N/E 为节点/边数，B 为累计批次数，D 为本批编辑规模。
 
 | 调用链 / 数据 | 用途与复杂度 | 归属 |
 |---|---|---|
@@ -110,3 +110,24 @@
 | JSON 写出、来源视图、跨 prefix 局部对象 | 直接写流、浅层只读规范化、释放已完成比较的数据 | 诊断工具；不新增缓存或运行时选项 |
 
 结果见 [内存清理与回归报告](memory-cleanup-20260916.md)。
+
+## Stage 11 生产路径与存储
+
+| 调用链 / 数据 | 用途与成本 | 当前归属 |
+|---|---|---|
+| CPU incremental baseline 的附加 capture/FIFO；旧 Stage 3 coordinator/authorization；整库 candidate/carrier | 无生产消费者或被实际事务替代 | 删除，不留 ON 兼容层 |
+| 显式 snapshot observation、摘要、完整证明、fresh/native 对照 | 开发诊断，额外遍历/复制/序列化随 N/E/paths 增长 | 仅 ON；close 不补建未请求对象 |
+| NativeEditTransaction、graph/index/resolver patch undo | 保存实际修改位置、旧长度与新增键；成本随实际编辑及受影响邻接增长 | OFF/ON；full 重建的旧派生状态通过 move 保留 |
+| ExpectedBeforeBinding graph/index | descriptor 的必要输入 | 借用至 apply/扩容前；诊断比较副本仅 ON |
+| 恢复编辑与实际 mode/generation | 真实恢复所需；每批追加一条，不复制历史前缀 | OFF/ON；独立恢复等价仅开发验收 |
+| immutable Liberty/模型/table、实例 ChildState/load | 真实计算；未变模型按会话复用，新增模型/数组扩容如实计量 | OFF/ON |
+| committed/work 结果、设备容量/stream/events/scratch、受影响 Aux 行 | 原子结果发布与实际计算；传播/重置仍可能为全图成本 | OFF/ON；无每批整图事务 D2D |
+| sparse seed 与 N×8 紧凑 tag 域 | 全部有效路径身份；空行无 payload，结构域变化需重新压缩 | OFF/ON；不能截断 tag |
+| status、levels offsets/inverse | 提交与下一批 mixed 的功能输入 | OFF/ON；完整 order 在 OFF 延迟至实际查询 |
+| timing D2H、稳定 ID scatter、report 后处理 | 当前 generation 消费者结果；首次物化后缓存 | 按需；不得 CPU 重传播、返回陈旧结果或发布半份状态 |
+| native CSR export 的完整 input contract | 外部方向/模型镜像、fallback arc 完整性、数值与身份约束 | OFF/ON；受控 export→CUDA 不重复全检，公共 CUDA 裸输入仍校验 |
+| ON winner 入弧索引及延迟 SoA 检查 | 保留全部合法候选的独立证明；按图保序索引、数组结构一次校验，逐候选保留数值/lineage 检查 | 仅 ON 诊断 controller；targeted/fresh 分别验证 |
+| fresh sample 加载、close/destroy | 工作负载生命周期 | OFF/ON；成功清理不等于最终回滚 |
+| 真实分配/传输/阶段耗时与外部 profiler | 性能事实；提交、物化、报告和端到端分开 | OFF/ON；详细证明与正确性比较在 OFF 记 not_run |
+
+实施和验收进度见 [Stage 11 报告](stage11-progress-report.md)。以上归属不构成性能验收通过。

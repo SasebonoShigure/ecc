@@ -194,7 +194,7 @@ def test_full_session_keeps_observation_none_through_release():
 
     assert session.snapshot_observation is None
     assert native.session.token_reads == 1
-    assert native.session.observation_reads == 2
+    assert native.session.observation_reads == 1
 
 
 @pytest.mark.parametrize("token", [True, 0, -1, 1 << 64, "1"])
@@ -220,111 +220,25 @@ def test_native_close_throw_skips_released_getter_and_clears_public_value():
 
     with pytest.raises(RuntimeError, match="close failed") as raised, session:
         session.run_full_baseline()
+        assert session.snapshot_observation is not None
 
     assert raised.value is close_error
     assert native.session.observation_reads == 1
     _assert_failed_session_terminal(session, native)
 
 
-@pytest.mark.parametrize("released_stage", ["clean", "getter", "parse", "transition"])
-def test_wrong_close_return_dominates_every_release_stage(released_stage, monkeypatch):
+@pytest.mark.parametrize("close_stage", ["clean", "native", "wrong_return"])
+def test_body_contract_error_preserved_without_unrequested_observation(close_stage):
     request = _request(StaUpdateStrategy.FULL)
-    cleanup_error = RuntimeError(f"{released_stage} release failed")
-    native_kwargs = {"close_result": False}
-    expected_cause = None if released_stage == "clean" else cleanup_error
-    if released_stage == "getter":
-        native_kwargs["released_error"] = cleanup_error
-    elif released_stage == "parse":
-
-        def fail_parse(_raw):
-            raise cleanup_error
-
-        monkeypatch.setattr(sta_session_module, "snapshot_observation_from_mapping", fail_parse)
-    elif released_stage == "transition":
-
-        def fail_transition(*_args):
-            raise cleanup_error
-
-        monkeypatch.setattr(
-            sta_session_module,
-            "validate_snapshot_observation_transition",
-            fail_transition,
-        )
-
-    native = _NativeModule(request, **native_kwargs)
-    session = IncrementalStaSession(native, request, CONTEXT)
-    with (
-        pytest.raises(StaExecutionContractError, match="close must return None") as raised,
-        session,
-    ):
-        pass
-
-    assert raised.value.__cause__ is expected_cause
-    assert native.session.observation_reads == 1
-    assert native.session.close_calls == 1
-    _assert_failed_session_terminal(session, native)
-
-
-@pytest.mark.parametrize("body_stage", ["bad_record", "bad_active"])
-@pytest.mark.parametrize(
-    "close_stage",
-    ["clean", "native", "wrong_return", "getter", "parse", "transition"],
-)
-def test_body_contract_error_identity_dominates_every_close_stage(
-    body_stage, close_stage, monkeypatch
-):
-    if body_stage == "bad_record":
-        request = _request(StaUpdateStrategy.FULL)
-        bad_record = _record_mapping(request)
-        bad_record["update_strategy"] = StaUpdateStrategy.INCREMENTAL.value
-        native_kwargs = {"record_mapping": bad_record}
-        active_reads = 0
-        close_parse_call = 1
-    else:
-        request = _request(StaUpdateStrategy.INCREMENTAL)
-        native_kwargs = {"observation_script": (_snapshot_mapping(2), None)}
-        active_reads = 1
-        close_parse_call = 2
-
-    cleanup_error = RuntimeError(f"{close_stage} close failed")
-    expected_cause = cleanup_error
-    if close_stage == "native":
-        native_kwargs["close_error"] = cleanup_error
-    elif close_stage == "wrong_return":
-        native_kwargs["close_result"] = False
-        expected_cause = None
-    elif close_stage == "getter":
-        native_kwargs["released_error"] = cleanup_error
-    elif close_stage == "parse":
-        original_parse = sta_session_module.snapshot_observation_from_mapping
-        parse_calls = 0
-
-        def fail_close_parse(raw):
-            nonlocal parse_calls
-            parse_calls += 1
-            if parse_calls == close_parse_call:
-                raise cleanup_error
-            return original_parse(raw)
-
-        monkeypatch.setattr(
-            sta_session_module,
-            "snapshot_observation_from_mapping",
-            fail_close_parse,
-        )
-    elif close_stage == "transition":
-
-        def fail_close_transition(*_args):
-            raise cleanup_error
-
-        monkeypatch.setattr(
-            sta_session_module,
-            "validate_snapshot_observation_transition",
-            fail_close_transition,
-        )
-    else:
-        expected_cause = None
-
-    native = _NativeModule(request, **native_kwargs)
+    bad_record = _record_mapping(request)
+    bad_record["update_strategy"] = StaUpdateStrategy.INCREMENTAL.value
+    cleanup_error = RuntimeError("close failed")
+    native = _NativeModule(
+        request,
+        record_mapping=bad_record,
+        close_error=cleanup_error if close_stage == "native" else None,
+        close_result=False if close_stage == "wrong_return" else None,
+    )
     session = IncrementalStaSession(native, request, CONTEXT)
     body_errors = []
     with pytest.raises(StaExecutionContractError) as raised, session:
@@ -334,28 +248,59 @@ def test_body_contract_error_identity_dominates_every_close_stage(
             body_errors.append(body_error)
             raise
 
-    assert len(body_errors) == 1
     assert raised.value is body_errors[0]
     if close_stage == "wrong_return":
         assert isinstance(raised.value.__cause__, StaExecutionContractError)
         assert "close must return None" in str(raised.value.__cause__)
     else:
-        assert raised.value.__cause__ is expected_cause
+        assert raised.value.__cause__ is (cleanup_error if close_stage == "native" else None)
     assert native.session.close_calls == 1
-    assert native.session.observation_reads == active_reads + (close_stage != "native")
+    assert native.session.observation_reads == 0
+    _assert_failed_session_terminal(session, native)
+
+
+@pytest.mark.parametrize("release_failure", ["getter", "parse", "transition"])
+def test_requested_observation_release_failure_clears_cached_value(release_failure, monkeypatch):
+    request = _request(StaUpdateStrategy.INCREMENTAL)
+    cleanup_error = RuntimeError("observation release failed")
+    native = _NativeModule(request)
+    session = IncrementalStaSession(native, request, CONTEXT)
+    with pytest.raises(RuntimeError, match="observation release failed"), session:
+        session.run_full_baseline()
+        assert session.snapshot_observation is not None
+        if release_failure == "getter":
+            native.session.released_error = cleanup_error
+        else:
+            def fail(*_args):
+                raise cleanup_error
+
+            name = (
+                "snapshot_observation_from_mapping"
+                if release_failure == "parse"
+                else "validate_snapshot_observation_transition"
+            )
+            monkeypatch.setattr(sta_session_module, name, fail)
+    assert native.session.close_calls == 1
+    assert native.session.observation_reads == 2
     _assert_failed_session_terminal(session, native)
 
 
 @pytest.mark.parametrize("debug_checks", [False, True])
-def test_build_flag_controls_observation_collection(debug_checks):
+@pytest.mark.parametrize("request_observation", [False, True])
+def test_build_flag_controls_explicit_observation_collection(debug_checks, request_observation):
     request = _request(StaUpdateStrategy.INCREMENTAL)
     native = _NativeModule(request)
     native.incregpusta_debug_checks_enabled = debug_checks
     with IncrementalStaSession(native, request, CONTEXT) as session:
         session.run_full_baseline()
+        assert native.session.observation_reads == 0
+        if request_observation:
+            assert (session.snapshot_observation is not None) is debug_checks
+            assert (session.snapshot_observation is not None) is debug_checks
+    captured = debug_checks and request_observation
     assert native.session.close_calls == 1
-    assert native.session.observation_reads == (2 if debug_checks else 0)
-    assert (session.snapshot_observation is not None) is debug_checks
+    assert native.session.observation_reads == (2 if captured else 0)
+    assert (session.snapshot_observation is not None) is captured
 
 
 @pytest.mark.parametrize(
@@ -373,5 +318,48 @@ def test_initial_snapshot_rejects_wrong_corner_fingerprint(wrong_fingerprint):
     session = IncrementalStaSession(native, request, CONTEXT)
     with pytest.raises(StaExecutionContractError, match="capture contract"), session:
         session.run_full_baseline()
+        _ = session.snapshot_observation
     assert native.session.close_calls == 1
     _assert_failed_session_terminal(session, native)
+
+
+@pytest.mark.parametrize("with_sink", [False, True])
+@pytest.mark.parametrize("debug_checks", [False, True])
+def test_run_timing_explicit_sink_requests_observation_before_close(
+    tmp_path, monkeypatch, with_sink, debug_checks
+):
+    from chipcompiler.tools.ecc import module as ecc_module
+
+    request = _request(StaUpdateStrategy.INCREMENTAL)
+    native = _NativeModule(request)
+    native.incregpusta_debug_checks_enabled = debug_checks
+    native.lib_init = lambda **_kwargs: None
+    native.sdc_init = lambda _path: None
+    native.spef_init = lambda _path: None
+    module = ecc_module.ECCToolsModule.__new__(ecc_module.ECCToolsModule)
+    module.ecc = native
+    monkeypatch.setattr(ecc_module, "discard_sta_run_outputs", lambda *_args: None)
+    monkeypatch.setattr(ecc_module, "publish_sta_artifacts", lambda **_kwargs: None)
+    captured = []
+    module.run_timing(
+        work_dir=tmp_path / "work",
+        feature_dir=tmp_path / "features",
+        output_modes=("structured",),
+        execution_request=request,
+        snapshot_observation_sink=(
+            (lambda context, observation: captured.append((context, observation)))
+            if with_sink
+            else None
+        ),
+    )
+    assert native.session.close_calls == 1
+    assert native.session.observation_reads == (2 if with_sink and debug_checks else 0)
+    if with_sink:
+        assert len(captured) == 1
+        assert captured[0][0] == CONTEXT
+        if debug_checks:
+            assert captured[0][1].state is StaSnapshotState.RELEASED
+        else:
+            assert captured[0][1] is None
+    else:
+        assert not captured

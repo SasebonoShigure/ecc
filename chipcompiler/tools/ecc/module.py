@@ -743,9 +743,10 @@ class ECCToolsModule:
             config_dict=config_dict,
         ) as sta_session:
             execution_record = sta_session.run_full_baseline()
-        snapshot_observation = sta_session.snapshot_observation
+            if snapshot_observation_sink is not None:
+                _ = sta_session.snapshot_observation
         if snapshot_observation_sink is not None:
-            snapshot_observation_sink(resolved_context, snapshot_observation)
+            snapshot_observation_sink(resolved_context, sta_session.snapshot_observation)
 
         publish_sta_artifacts(
             work_dir=work_dir or "",
