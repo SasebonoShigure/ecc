@@ -1,10 +1,10 @@
 # ECC 中复现 IncreGPUSTA 的分阶段实施计划
 
-> 状态：`v2.9-stage11-storage-transactions`；Stage 0–6 清理已本地提交（ecc `356fa09`、ecc-tools `4b0398753`），Stage 7–8 已完成真实 GPU 验收并提交（ecc `872d474`、ecc-tools `044399b41`）。Stage 9 hybrid CUDA incremental 实现与本机验收完成，阶段性提交为 ecc `a8697e5`、ecc-tools `73aa7816f`；随后 Stage 9 状态文档已提交至 ecc fc6379e，均未 push。见 [Stage 9 报告](incregpusta/stage9-progress-report.md)、[Stage 8 报告](incregpusta/stage8-progress-report.md)、[Stage 7 报告](incregpusta/stage7-progress-report.md)、[清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。历史验收记录保留；本次 [CUDA CI 验证报告](incregpusta/cuda-ci-validation-20260914.md) 记录了三个真实设计的支持缺口。Stage 10 六类语义及三设计四模式、真实 Q/D 两批、OFF/ON 与恢复功能验收完成，见 [Stage 10 报告](incregpusta/stage10-progress-report.md)；lint/type 的未通过项已记录。Stage 10 已于 2026-09-16 提交（ecc-tools 6921b6089）；Stage 10 后内存清理的提交为 ecc `dbb1c8e`、ecc-tools `fec270b8a`。原 Stage 11 实现已撤回。新 Stage 11 已按批准的[详细计划](incregpusta/stage11-detailed-plan.md)完成功能、事务安全和默认路径剖析验收，按用户授权本地提交，未 push；既有类型检查失败和实际限制见[实施报告](incregpusta/stage11-progress-report.md)。Stage 12–14 尚未实施：下一阶段完成 CUDA 并行和核心性能验收，再做生产集成与正式性能评估。
+> 状态：`v3.1-stage12-parallel-validation`；Stage 0–6 清理已本地提交（ecc `356fa09`、ecc-tools `4b0398753`），Stage 7–8 已完成真实 GPU 验收并提交（ecc `872d474`、ecc-tools `044399b41`）。Stage 9 hybrid CUDA incremental 实现与本机验收完成，阶段性提交为 ecc `a8697e5`、ecc-tools `73aa7816f`；随后 Stage 9 状态文档已提交至 ecc fc6379e，均未 push。见 [Stage 9 报告](incregpusta/stage9-progress-report.md)、[Stage 8 报告](incregpusta/stage8-progress-report.md)、[Stage 7 报告](incregpusta/stage7-progress-report.md)、[清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。历史验收记录保留；本次 [CUDA CI 验证报告](incregpusta/cuda-ci-validation-20260914.md) 记录了三个真实设计的支持缺口。Stage 10 六类语义及三设计四模式、真实 Q/D 两批、OFF/ON 与恢复功能验收完成，见 [Stage 10 报告](incregpusta/stage10-progress-report.md)；lint/type 的未通过项已记录。Stage 10 已于 2026-09-16 提交（ecc-tools 6921b6089）；Stage 10 后内存清理的提交为 ecc `dbb1c8e`、ecc-tools `fec270b8a`。原 Stage 11 实现已撤回。新 Stage 11 已按批准的[详细计划](incregpusta/stage11-detailed-plan.md)完成功能、事务安全和默认路径剖析验收，按用户授权本地提交，未 push；既有类型检查失败和实际限制见[实施报告](incregpusta/stage11-progress-report.md)。Stage 12 的并行传播、full Kahn、patch/undo、批量传输及本轮参考测量已收尾；独立构建回归、CUDA sanitizer、必测用例逐批 native oracle 和跨构建对照证据已记录，CPU sanitizer 原始失败、类型检查失败及权限限制保留。按用户调整后的共享 GPU、每模式预热 1 次/采样 3 次协议，十三组（含宽层百万节点）均绑定修复版 1ca4e4e8，旧版用例重测和最终核验、归档完成；旧数据全部保留。原严格性能门仍为 not_run，不宣称正式高性能验收通过；见 [Stage 12 详细计划](incregpusta/stage12-detailed-plan.md)及[实施记录](incregpusta/stage12-progress-report.md)。Stage 12 已按用户授权本地提交（ecc-tools 42b64be72），未 push；Stage 13–14 尚未实施。
 > 文档范围：本计划及阶段说明仅适用于 `IncreGPUSTA`；相关文档维护在 `ecc/docs`，不修改仓库通用 README。
 > 目标仓库：`/home/shigure/code/ecc`
 > 强制开发分支：`IncreGPUSTA`
-> 日期：2026-08-19；最近更新：2026-09-21
+> 日期：2026-08-19；最近更新：2026-09-29
 
 ## 1. 目标、范围与结论
 
@@ -99,7 +99,7 @@ GPU/高内存任务遵守工作区服务器规则：启动前确认本项目及�
 9. **性能 smoke**：从涉及性能的阶段开始运行短 smoke，但性能结果永远不能替代 correctness gate。
 10. **阶段报告**：额外输出一份文字说明，至少包含修改文件和符号、用户可见行为、配置变化、执行命令、测试结果、review 轮次及结论、性能 artifact、已知限制、fallback 次数和下一阶段 gate。
 
-只有“独立审查通过”和“正确性测试通过”同时成立，并满足该阶段额外交付与验收门，阶段才可标为完成；阶段 12、14 还必须通过指定的性能门。性能成功不能替代正确性，正确性通过也不能替代高性能验收。GPU 阶段若没有真实 CUDA runner，只能记为 `not verified`，不能以 CPU mock、compile-only 或 skip 将阶段标成完成。
+只有“独立审查通过”和“正确性测试通过”同时成立，并满足该阶段额外交付与验收门，阶段才可标为完成；阶段 12 本轮按用户确认完成参考性能测量；阶段 12 的严格高性能结论及阶段 14 仍须通过指定性能门。性能成功不能替代正确性，正确性通过也不能替代高性能验收。GPU 阶段若没有真实 CUDA runner，只能记为 `not verified`，不能以 CPU mock、compile-only 或 skip 将阶段标成完成。
 
 阶段报告建议采用：
 
@@ -733,7 +733,7 @@ speedup 必须明确同名字段（`update_core_ms`、`session_step_ms`、`consu
 
 每份输出写 `comparability_status = exact | protocol_only | non_comparable`。
 
-buffer-count sweep 至少覆盖 1、10、100、1K、10K、100K；同时报告真实 changed-node/edge 和 affected fraction。优化前冻结代表性规模、trace、消费者结果需求和必过用例，不得看结果后挑样本。阶段 12、14 的必过用例分别要求 CUDA/full 相对 native CPU/full、CUDA/incremental 相对优化后的 CUDA/full 的 `consumer_step_ms` 配对加速比 95% 置信区间下界大于 1。记录所有负结果、交叉点和资源受限点，不要求每个小设计或所有规模更快；未满足指定性能门不得标记高性能完成。回归比较只在相同硬件指纹和稳定 runner 上进行；普通 PR 不以绝对时延失败。
+buffer-count sweep 至少覆盖 1、10、100、1K、10K、100K；同时报告真实 changed-node/edge 和 affected fraction。优化前冻结代表性规模、trace、消费者结果需求和必过用例，不得看结果后挑样本。阶段 12、14 的严格性能结论要求必过用例分别实现 CUDA/full 相对 native CPU/full、CUDA/incremental 相对优化后的 CUDA/full 的 `consumer_step_ms` 配对加速比 95% 置信区间下界大于 1。记录所有负结果、交叉点和资源受限点，不要求每个小设计或所有规模更快；未满足指定性能门不得标记高性能完成。回归比较只在相同硬件指纹和稳定 runner 上进行；普通 PR 不以绝对时延失败。
 
 ### 9.3 论文数值只作背景
 
@@ -1111,17 +1111,17 @@ PreparedBatch
 
 ### 阶段 12：CUDA 并行计算、规模验证与核心性能验收
 
-状态：尚未实施；Stage 11 验收后开展。保持增量图/分层与全图传播，不加入 affected-cone AT/RAT 或 auto policy。
+状态：本轮实现、正确性回归及十三组修复版 1/3 参考测量已收尾，原严格高性能验收未完成；以 ECC `aa33d82`、ecc-tools `7cd621119` 为基线。范围按[详细计划](incregpusta/stage12-detailed-plan.md)，结果、实际失败与限制见[实施记录](incregpusta/stage12-progress-report.md)。保持增量图/分层与全图传播，不加入 affected-cone AT/RAT 或 auto policy。
 
 **先分析**
 
 - 传播、full levelization、三个 CSR patch kernel 的依赖与写入归属，包含时钟、顺序发射和时序检查；不能仅增大 launch 参数；
-- 确定候选顺序与 epsilon/舍入/winner/前驱/路径语义，识别共享可变状态及同步边界；
+- 以现有局部稳定身份确定 epsilon 窗内的 winner，保留舍入、前驱及路径身份；不统一 full/mixed 访问顺序，不新增全局候选排序。识别共享可变状态及同步边界；
 - 在优化前冻结代表性规模、真实/合成 trace、消费者结果需求、合理 CPU 线程配置、统计方法和必过性能用例；小设计只承担对应功能/交叉点验证。
 
 **交付**
 
-- 替换单线程 propagation、full levelizer 和三个 CSR patch kernel；正向按层、反向按逆层，同层节点并行、节点内候选顺序确定、结果写入归属明确；
+- 替换单线程 propagation、full levelizer 和三个 CSR patch kernel；正向按层、反向按逆层，同层节点并行、节点内按局部稳定身份选择候选、结果写入归属明确；
 - 保持现有数值与 winner 语义，不用无序 atomic max/min 替代；时钟、顺序发射、时序检查纳入并行，按实际 clock domain 遍历，避免每个 clock 扫描全图；
 - CUDA/full 与 CUDA/incremental 共用优化后的传播；full 保留完整图重建、分层和传播，同时同等复用不可变模型和分配容量；
 - 保留 CPU mixed 构造/Kahn 与 GPU reconstruction 分工；区分必要算法遍历与可通过增量维护消除的重复工作；
@@ -1134,7 +1134,7 @@ PreparedBatch
 - 覆盖宽层、高扇入/扇出、汇聚、epsilon-chain、并行弧、多时钟、多 tag、长批次和容量增长；执行适用的 CUDA 内存及并发检查；
 - OFF 正式采样不启动 oracle/完整诊断，ON 采样前拒绝；实际失败、未支持和未执行如实分类，不放宽 tolerance、丢字段或关闭必要检查换取速度；
 - 按第 9.2 节冻结口径交错运行，工程验收默认预热 5 次、采样 30 次，主要比较包含必要回传/物化/后处理的 `consumer_step_ms`；
-- 必过用例的 CUDA/full 对 native CPU/full、CUDA/incremental 对优化后 CUDA/full 两项配对加速比 95% 置信区间下界均大于 1；不要求论文倍数或所有规模更快，未达性能门不得标记本阶段或高性能实现完成。
+- 本轮按 2026-09-23 用户确认，将加速测试作为参考：允许采样中 GPU 共享，记录占用与全部结果，不取消、挑选或因共享重跑。用户 2026-09-28 最新要求将所有本轮参考用例统一为每模式预热 1 次、采样 3 次，包含百万节点可选用例；全部样例绑定修复后的当前二进制，旧版用例重新采样。输入、线程、消费者需求及两项配对统计不变。已有更多数据时，仅对当前版本数据按原始序号取前 1 次预热和前 3 次正式样本；不将额外预热改记为正式样本，保留全部原始数据及旧统计。工程默认仍为 5/30。原严格门仍要求必过用例两项 95% 区间下界均大于 1；当前参考结果不证明该门已通过，也不得据此宣称高性能实现验收完成。
 
 **阶段报告重点**
 
@@ -1216,7 +1216,7 @@ PreparedBatch
 4. **Self-hosted GPU correctness gate**
    synthetic + 至少一个真实 design，运行 GPU full/incremental。无 GPU 只能明确 skip/not-run，不能算通过。
 5. **Stage 12 / Stage 14 manual performance gate**
-   Stage 12 验收核心消费者收益，Stage 14 复验生产收益与论文可比性；Release/OFF、固定 runner、上传 raw JSON/CSV 和置信区间，按预先冻结用例判断。普通 PR 不采用跨硬件绝对时延门禁。
+   Stage 12 本轮记录核心消费者参考收益，严格性能门单列未验收；Stage 14 复验生产收益与论文可比性；Release/OFF、固定 runner、上传 raw JSON/CSV 和置信区间，按预先冻结用例判断。普通 PR 不采用跨硬件绝对时延门禁。
 
 示意命令，执行前须按实际 target 名更新：
 
@@ -1254,7 +1254,7 @@ uv run pytest test/integration/test_incremental_sta_flow.py \
 - data-only/clock-edit contract、跨层 physical transaction 和 current-generation power/report/SDF 后处理均通过 integration gate；
 - GPU correctness 在真实设备上通过，传播/full levelization/CSR patch 的实际并行执行由运行剖析验证；
 - Stage 11 的默认路径无诊断专用工作和每批完整事务复制，按需查询返回当前 generation，稳态存储复用和扩容行为取得实际证据；
-- Stage 12、14 按预先冻结的消费者需求和用例分别通过核心/生产性能门，CUDA/full 对 native CPU/full、CUDA/incremental 对优化后 CUDA/full 均有显著正收益；保留原始样本、置信区间、负结果与 break-even，正确性通过不能替代该门；
+- Stage 12 本轮完成预先冻结用例的参考测量并明确共享 GPU 条件；严格核心/生产性能结论仍要求 CUDA/full 对 native CPU/full、CUDA/incremental 对优化后 CUDA/full 均有显著正收益。保留原始样本、置信区间、负结果与 break-even，正确性通过或参考测量完成不替代严格性能门；
 - 每阶段均有独立 subagent 审查记录、修正循环、测试记录和文字变更说明；
 - 父仓库与 ecc-tools 的 `IncreGPUSTA` 分支/commit/gitlink 可达且清晰；工作树无未解释的本阶段改动，并保留用户已有修改。
 

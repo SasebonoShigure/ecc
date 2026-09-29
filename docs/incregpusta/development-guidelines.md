@@ -59,7 +59,7 @@ Stage 7 的每批完整导出和事务复制是历史实现成本。Stage 11 起
 
 内部上一代 levels 以引用借用；OFF 保留维度、范围、高水位、generation、roots、indegree、processed count、cycle 和 CUDA status 检查。受控 mixed graph 完整 proof 仅 builder 的 ON 位置负责，Kahn 仅证明自己生成的 result，不嵌套公共 graph validator。外部 previous/graph/replay 输入仍完整校验。ON 的 CPU reconstruction oracle 与独立 level 不变量检查不能移入正常性能路径。
 
-GPU reconstruction 计时必须从 CPU build/Kahn/plan 完成后开始，报告 CPU build、Kahn、plan、GPU reconstruction、update、propagation、scatter、batch/process total。完整传播仍是功能成本；当前 propagation kernel 的串行实现不能被描述为已证实加速。
+GPU reconstruction 计时必须从 CPU build/Kahn/plan 完成后开始，报告 CPU build、Kahn、plan、GPU reconstruction、update、propagation、scatter、batch/process total。完整传播仍是功能成本；历史串行 kernel 的正确性证据不能替代 Stage 12 并行实现及性能验收。
 
 仅真实 old-level order conflict 支持显式 `full_with_record`。重试前完成失败批次的局部撤销并释放 pending，再针对同一健康 owner 执行 full；actual cycle、数值/容量及 CUDA 错误不得伪装 fallback 成功。详细 rejected attempt 只记录已实际发生的失败，默认 Error 拒绝后仍须允许健康批次。损坏 CUDA context 不复用，恢复验收在新的健康进程按实际 mixed 模式重放。
 
@@ -98,10 +98,22 @@ Stage 5/6 的每批 functional/structural 只由 published_observations 持有�
 - prepare 先预留容量、局部旧值和本批恢复记录，再 apply/backend；commit 只做无抛出的交换、单条历史追加、generation 推进和缓存失效。放弃也必须撤销；成功提交不得自动回滚。
 - CPU incremental 不附加 native full 或 baseline CSR/FIFO。ON observation 只在显式读取时构造并按 generation 缓存；未请求就 close 不补建。
 - 默认提交仅回传必要状态与 mixed 所需 offsets/inverse；完整节点排列和 timing 随消费者查询物化。同 generation 复用，新提交失效，pending/poison 拒绝查询。报告用 analyzePropagatedTiming，失败不得发布半份结果或退回旧报告。
-- 原生 CSR 导出的完整输入校验保留，包括 native/Liberty 方向、fallback arc 覆盖和数值约束。直接受控 export→CUDA 调用在私有核心复用校验结果；公开裸 input/levels 入口仍完整校验，不添加公开 skip 标志。
+- 原生 CSR 导出在构造时保留 native/Liberty 方向、fallback arc 覆盖、clock owner 冲突及数值边界；对刚生成对象再次执行完整 contract 证明仅 ON。必要 source identity 与失败阶段指纹保留。直接受控 export→CUDA 调用复用构造结果；公开裸 input/levels 入口仍完整校验，不添加公开 skip 标志。
 - 路径保留 N×8 逻辑行和全部结构可达 tag；空行无 payload。域重排、必要全图传播、levels、工作区重置与扩容分别计量，不声称所有成本只随增量增长。
 - 性能样本 fresh session 执行完整 prefix 后 close/destroy。分别记录提交、物化、报告与消费者端到端成本；OFF 完整比较/详细诊断记 not_run。默认预热 5 次、采样 30 次，短 smoke 明示，不能代替 Stage 12 性能门。
 
 诊断 validator 按图建立保序索引，完整数组结构只在其边界校验一次；独立 oracle 的计算仍分开执行，不能用目标结果的 winner 限制候选集合。
 
 当前协议以对应 serializer/controller 为准。Stage 11 已移除旧 Stage 3 authorization/coordinator、整库 candidate/carrier 和重复 receipt 路径；不为历史内部 API 保留兼容壳。
+
+## Stage 12 局部候选与并行边界
+
+候选选择不依赖 full/mixed 的全局访问顺序。每个结果 lane 先取数值极值，再从原 epsilon 窗中依次按 seed、入边行内序号、输入 transition 选取实际候选；保留其实际数值、winner、前驱和路径身份。不新增全图 ID/排序表，native oracle 保持独立计算。必要的数值和边界拒绝始终保留。
+
+并行计算按层、同层节点单写入者。同 stream 的阶段边界保护 clock/data 弧状态及 endpoint 覆写；节点内保持候选选择规则。共享错误必须原子归并，可由线程局部 status 复用同步 helper 后统一上报，不能因早退漏报；并发多错不承诺串行首错顺序。ON 访问计数也须无竞争，OFF 编译剔除。实际 launch、同步、传输与分配另作运行剖析，不能用源码或固定计数断言代替。
+
+当前 CUDA full trace/verdict 为 v4、targeted/incremental 为 v5，consumer raw 为 v2；访问审计按四阶段各保存 BaseOut/AuxOut/BaseIn，完整比较仅 ON。显式 kernel launch 与 CUB 执行调用分别记录；CUB 内部实际 launch 由运行剖析核对，不把一次算法调用当作一个 kernel。full Kahn 的设备决策回传单列，传播层间不得加入 host 等待。普通 OFF 四模式实验使用 samples v2、每个 fresh process 的完整 trace 配对，默认预热 5、采样 30，正确性及详细诊断为 not_run。
+
+回归构建必须包含 controller 命令参数中间接调用的 probe。binding 按实际路径和只读构建状态验明；sanitizer 与 Release 若第三方库输出共用源码目录，须隔离该输出，不能仅分开 CMake build 目录。
+
+必要的 capture 字段检查应按当批稳定身份建立局部查找索引，避免每条记录重扫完整集合。索引可借用当前调用期间只读的 records/plan，不能跨 apply、扩容或提交持有指针；完整请求与旧值核对仍须执行。此类查找顺序不得改变传播候选或 descriptor 输出顺序。 已维护且仍适用的稳定身份直接复用，不为每条弧重新扫描同源邻接；native 槽位复用时，必须在更新后的投影前完成 stable ref 重绑，并保留当前图的其余 key 字段及边界检查。

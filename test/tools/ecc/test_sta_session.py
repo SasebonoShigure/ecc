@@ -1,7 +1,7 @@
 from dataclasses import replace
 from enum import Enum
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -569,14 +569,16 @@ def test_cuda_incremental_baseline_uses_native_record_without_cpu_snapshot(debug
         "executed_backend": "cuda",
     }
     native_session = FakeNativeSession(request)
-    native_session.run_full_baseline = Mock(return_value=raw_record)
-    native = SimpleNamespace(
+    native = Mock(
         incregpusta_debug_checks_enabled=debug_checks,
         StaSessionError=FakeNativeStaSessionError,
         resolve_sta_execution=Mock(return_value=raw_record),
         create_incremental_sta_session=Mock(return_value=native_session),
     )
-    with IncrementalStaSession(native, request, _CONTEXT) as session:
+    with (
+        patch.object(native_session, "run_full_baseline", return_value=raw_record),
+        IncrementalStaSession(native, request, _CONTEXT) as session,
+    ):
         result = session.run_full_baseline()
         assert session.snapshot_observation is None
     assert result == replace(

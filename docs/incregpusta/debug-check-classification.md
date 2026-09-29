@@ -1,6 +1,6 @@
-# Stage 0–11 开发检查分类
+# Stage 0–12 开发检查分类
 
-状态：Stage 11 实施中，尚未验收。下表及 Stage 7–10 小节保留历史分类；被替换实现以末尾 Stage 11 分类为准。以下保留 2026-09-08 冗余清理及后续阶段记录。当前结果见 [清理报告](stage0-6-redundancy-cleanup-report.md)，此前诊断分离结果与限制见 [实施报告](debug-checks-implementation-report.md) 和 [实测证据](debug-check-acceptance.json)。开发规则见 [development-guidelines.md](development-guidelines.md)。复杂度中的 N/E 为节点/边数，B 为累计批次数，D 为本批编辑规模。
+状态：Stage 11 已提交；Stage 12 本轮实现与参考测量已收尾，原严格高性能验收未完成。下表及 Stage 7–10 小节保留历史分类；被替换实现以末尾 Stage 11–12 分类为准。以下保留 2026-09-08 冗余清理及后续阶段记录。当前结果见 [清理报告](stage0-6-redundancy-cleanup-report.md)，此前诊断分离结果与限制见 [实施报告](debug-checks-implementation-report.md) 和 [实测证据](debug-check-acceptance.json)。开发规则见 [development-guidelines.md](development-guidelines.md)。复杂度中的 N/E 为节点/边数，B 为累计批次数，D 为本批编辑规模。
 
 | 调用链 / 数据 | 用途与复杂度 | 归属 |
 |---|---|---|
@@ -131,3 +131,32 @@
 | 真实分配/传输/阶段耗时与外部 profiler | 性能事实；提交、物化、报告和端到端分开 | OFF/ON；详细证明与正确性比较在 OFF 记 not_run |
 
 实施和验收进度见 [Stage 11 报告](stage11-progress-report.md)。以上归属不构成性能验收通过。
+
+## Stage 12 候选选择与验收
+
+| 调用链 / 数据 | 用途与成本 | 归属 |
+|---|---|---|
+| 节点内极值及 epsilon 窗内局部身份选择 | 功能语义；遍历实际候选，不建立全图顺序表；CPU 临时候选仅单节点复用，CUDA 两次局部遍历 | OFF/ON |
+| JSON 重复键、native capture 的局部索引和完整 key 核对 | 外部输入与编辑适用性；解析随输入大小，索引随本批请求及必要捕获范围 | OFF/ON；不靠关闭校验消除重复搜索 |
+| structured capture 的弧覆盖、并行重数、完整电容请求与旧值 | 借用当批记录建索引，分组一次验证；committed capacitance 仍有一次全表遍历 | OFF/ON；保留缺失、重复、身份和字段策略拒绝，不以重复搜索充当证明 |
+| targeted 弧的 parallel ordinal 投影 | 通过 native slot→stable ref 读取已有序号，序号查询 O(1)；其余 key 字段仍取当前图 | OFF/ON；当前 data-only edit 保持并行组，复用槽位先完成重绑，保留边界及身份检查 |
+| 并发 status 归并、阶段依赖及唯一写入位置 | 并行实现必须保留的数值/内存安全和提交资格 | OFF/ON；并行改造尚未验收 |
+| BaseOut/AuxOut/BaseIn 四阶段详细访问计数 | 证明实际遍历路径；CPU forward 改为两次入边访问，CUDA 诊断数组为 12 项 | 仅 ON；full trace/verdict v4、targeted/incremental v5，不用于提交授权 |
+| 独立 native/full、完整 timing/winner/paths、层合法性及不同 launch 形状比较 | 功能及并发验收；保留全部候选与既有 tolerance | 开发验收；普通性能不运行 |
+| 消费者样本与配对统计 | 提交至所需结果可用、加载与清理、实际线程和设备事实；完整 trace 为样本 | OFF 性能；正确性及详细诊断为 not_run |
+
+实际失败、修复及剩余门槛见 [Stage 12 实施记录](stage12-progress-report.md)，不能将上述分类当作并行或性能验收结果。
+
+独立 native oracle 的结果转换仅用于诊断验收。节点、弧及 tag 映射复用已有有序记录进行二分查找，保留完整 key 与 ID 范围检查；不参与 OFF 消费者路径，也不新增持久索引。
+
+Descriptor replay 的追加弧邻接证明仅在 ON 验收使用。每个 descriptor 对 BaseOut/BaseIn/Aux 各扫描一次，保留所有出现位置和重数；不因期望端点已找到就跳过其他行。
+
+Stage 12 诊断回放仅复制其实际修改的外层容器、节点 net_name 记录与 Base 槽位；嵌套 model/table/key 借用只读记录。成功与失败回放均校验原始输入不变，所有逐字段比较仍保留在 ON；此项不改变生产 OFF 的工作负载。
+
+并行实现保留 OFF/ON 的原子错误归并、唯一写入位置、实际 undo 和 stream 生命周期。full Kahn 的前沿扫描/稳定压缩、clock/domain 工作列表、endpoint 数值最大值归约均为必要计算，显式 launch、CUB 执行及决策回传分别计量；详细访问计数仍仅 ON。不同 launch 配置的全值比较和完整设备读回只属于开发验收。
+
+受控 native CSR 导出的末尾完整 contract 复查从 Stage 12 起仅 ON；它包含再次生成身份，以及现有 validator 按实例清零全图 pin 标记的 O(instances × N) 开销。构造过程继续在 OFF/ON 执行拓扑、方向、模型、数值和 clock owner 冲突检查；公开裸 CSR validator 不变。source identity 及分阶段失败指纹参与绑定和失效分类，仍保留。重叠时钟由已有 reachability 遍历即时拒绝，不增加第二次 replay。
+
+### Stage 12 诊断比较器的 seed 查找
+
+完整 root seed/winner 比较只属于 ON 开发验收。比较器按节点一次分组，列表保留重复项与全部 tag，继续执行原来的唯一匹配、数值和 CRPR 判定；不将二次扫描当作正确性要求。独立审查、行为 canary 和真实 receipt 调用剖析记录见 Stage 12 实施记录。
