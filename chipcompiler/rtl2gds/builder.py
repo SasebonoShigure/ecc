@@ -21,6 +21,13 @@ def build_rtl2gds_flow() -> list:
     return steps
 
 
+def build_incregpusta_experimental_flow() -> list:
+    steps = build_rtl2gds_flow()
+    routing = next(index for index, (step, _, _) in enumerate(steps) if step is StepEnum.ROUTING)
+    steps.insert(routing, (StepEnum.TIMING_OPT, "ecc", StateEnum.Unstart))
+    return steps
+
+
 def build_syn_sta_flow() -> list:
     steps = []
 

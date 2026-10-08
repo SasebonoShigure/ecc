@@ -13,7 +13,7 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
-from chipcompiler.data import StateEnum, Workspace, WorkspaceStep, log_flow
+from chipcompiler.data import StateEnum, StepEnum, Workspace, WorkspaceStep, log_flow
 from chipcompiler.utility.log import redirect_stdio_to_file
 from chipcompiler.utility.path import path_is_within
 
@@ -123,7 +123,15 @@ def _run_selected(flow: "EngineFlow", selected: list[tuple[WorkspaceStep, Path]]
         flow.workspace.logger.log_section(
             f"{workspace_step.tool} - begin step - {workspace_step.name}"
         )
-        _reset_output_dir(output_dir)
+        # A failed physical step resumes its committed journal and retries outputs.
+        # A full-flow restart has its separate explicit workspace reset.
+        if not (
+            workspace_step is selected[0][0]
+            and workspace_step.name == StepEnum.TIMING_OPT.value
+            and workspace_step.tool == "ecc"
+            and (output_dir / "physical_session" / "baseline.json").is_file()
+        ):
+            _reset_output_dir(output_dir)
         _redirect_to_step_log(workspace_step)
         flow.init_db_engine_for_step(workspace_step)
         state = flow.run_step(workspace_step, rerun=True)

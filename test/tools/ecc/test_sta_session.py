@@ -1,3 +1,4 @@
+import json
 from dataclasses import replace
 from enum import Enum
 from types import SimpleNamespace
@@ -114,6 +115,38 @@ class FakeNativeSession:
         self.state = "baseline_executed"
         return _record_mapping(self.request)
 
+    def run_physical_baseline(self, **config):
+        self.calls.append(("run_physical_baseline", config))
+        self.state = "baseline_executed"
+        return _record_mapping(self.request)
+
+    def apply_physical_batch(self, *, batch_json):
+        self.calls.append(("apply_physical_batch", json.loads(batch_json)))
+        if self.run_error is not None:
+            raise self.run_error
+        execution = _record_mapping(self.request)
+        execution["execution_kind"] = "full_update"
+        return {
+            "generation": json.loads(batch_json)["expected_generation"] + 1,
+            "execution": execution,
+        }
+
+    def recover_physical_baseline(self, **config):
+        self.calls.append(("recover_physical_baseline", config))
+        execution = _record_mapping(self.request)
+        execution["execution_kind"] = "full_update"
+        return {"generation": 2, "execution": execution}
+
+    def read_physical_placement(self, *, expected_generation, cell_names):
+        self.calls.append(("read_physical_placement", expected_generation, cell_names))
+        if self.run_error is not None:
+            raise self.run_error
+        return {"generation": expected_generation, "cells": dict.fromkeys(cell_names, [2, 4])}
+
+    def read_physical_result(self, *, summary_only=False):
+        self.calls.append(("read_physical_result", summary_only))
+        return {"generation": 0, "timing": [], "qor_json": "{}", "paths_json": "{}"}
+
     @property
     def csr_snapshot_observation(self):
         return None
@@ -172,6 +205,67 @@ def test_session_returns_validated_full_record_and_closes():
         ("run_full_baseline",),
         ("close",),
     ]
+
+
+def test_physical_baseline_and_current_result_use_the_same_session():
+    native = FakeNativeModule()
+    with IncrementalStaSession(native, _request(), _CONTEXT) as session:
+        record = session.run_physical_baseline(
+            bottom_layer="MET2", top_layer="MET5", recovery_directory="/tmp/checkpoint",
+            checkpoint_files={"def": "/tmp/design.def"},
+        )
+        current = session.read_physical_result()
+        session.read_physical_result(summary_only=True)
+        assert native.session.calls[-1] == ("read_physical_result", True)
+        with pytest.raises(ValueError, match="summary_only must be a boolean"):
+            session.read_physical_result(summary_only=1)
+    assert record == preflight_stage1_request(_request())
+    assert current["generation"] == 0
+    assert native.session.calls[1] == (
+        "run_physical_baseline",
+        {
+            "bottom_layer": "MET2", "top_layer": "MET5",
+            "horizontal_layer": "", "vertical_layer": "",
+            "recovery_directory": "/tmp/checkpoint",
+            "checkpoint_files": {"def": "/tmp/design.def"},
+        },
+    )
+    assert native.session.calls[2] == ("read_physical_result", False)
+
+
+def test_physical_placement_query_preserves_generation_and_native_errors():
+    native = FakeNativeModule()
+    with IncrementalStaSession(native, _request(), _CONTEXT) as session:
+        assert session.read_physical_placement(expected_generation=3, cell_names=["BUF"]) == {
+            "generation": 3, "cells": {"BUF": [2, 4]},
+        }
+        assert native.session.calls[-1] == ("read_physical_placement", 3, ["BUF"])
+        with pytest.raises(ValueError, match="uint64"):
+            session.read_physical_placement(expected_generation=True, cell_names=["BUF"])
+
+
+def test_physical_batch_and_recovery_preserve_edits_and_native_errors():
+    native = FakeNativeModule()
+    edits = [{"edit": {"creation_token": "buffer-one"}, "physical": {"x_dbu": 17}}]
+    with IncrementalStaSession(native, _request(), _CONTEXT) as session:
+        result = session.apply_physical_batch(expected_generation=1, edits=edits)
+        assert result.generation == 2
+        assert native.session.calls[-1] == ("apply_physical_batch", {
+            "schema_version": "physical-sta-batch/1.0.0",
+            "expected_generation": 1, "edits": edits,
+        })
+        recovered = session.recover_physical_baseline(
+            bottom_layer="MET2", top_layer="MET5", recovery_directory="/tmp/journal",
+            checkpoint_files={"def": "/tmp/input.def"},
+        )
+        assert recovered == result
+        native.session.run_error = _native_error(
+            state="baseline_executed", message="stale generation"
+        )
+        with pytest.raises(StaSessionError, match="stale generation"):
+            session.apply_physical_batch(expected_generation=1, edits=edits)
+        with pytest.raises(ValueError):
+            session.apply_physical_batch(expected_generation=2, edits=[{"bad": float("nan")}])
 
 
 def test_factory_native_error_is_converted_and_chained():
@@ -590,3 +684,13 @@ def test_cuda_incremental_baseline_uses_native_record_without_cpu_snapshot(debug
         {"backend": "cuda", "update_strategy": "incremental", "fallback_policy": "error"}
     )
     assert native_session.calls == [("initialize", "", {}), ("close",)]
+
+
+
+def test_physical_artifact_generation_rejects_non_integer_and_out_of_range():
+    native = FakeNativeModule()
+    with IncrementalStaSession(native, _request(), _CONTEXT) as session:
+        for method in (session.publish_physical_artifacts, session.read_physical_artifacts):
+            for value in (True, False, 1.0, -1, 1 << 64):
+                with pytest.raises(ValueError, match="generation"):
+                    method(expected_generation=value)

@@ -473,3 +473,32 @@ class TestStaModeParameters:
         assert overrides == {}
         assert len(errors) == 1
         assert "not in allowed choices" in errors[0]
+
+
+def test_physical_options_follow_existing_cli_mapping_and_toml_validation():
+    overrides, errors = parse_cli_overrides(
+        [
+            "sta.backend=cuda",
+            "sta.update_strategy=incremental",
+            "incregpusta.top_k=5",
+            "incregpusta.max_rounds=2",
+            "incregpusta.max_buffers=10",
+            "incregpusta.horizontal_rc_layer=MET3",
+        ]
+    )
+    assert not errors
+    resolved, errors = resolve_parameters(cli_overrides=overrides)
+    assert not errors
+    assert build_backend_overrides(resolved) == {
+        "STA backend": "cuda",
+        "STA update strategy": "incremental",
+        "incregpusta": {
+            "top_k": 5,
+            "max_rounds": 2,
+            "max_buffers": 10,
+            "horizontal_rc_layer": "MET3",
+        },
+    }
+    for value in (0, -1, True, 1.5, 1 << 64):
+        _, errors = resolve_parameters(toml_overrides={"incregpusta.max_buffers": value})
+        assert errors

@@ -117,3 +117,39 @@ Stage 5/6 的每批 functional/structural 只由 published_observations 持有�
 回归构建必须包含 controller 命令参数中间接调用的 probe。binding 按实际路径和只读构建状态验明；sanitizer 与 Release 若第三方库输出共用源码目录，须隔离该输出，不能仅分开 CMake build 目录。
 
 必要的 capture 字段检查应按当批稳定身份建立局部查找索引，避免每条记录重扫完整集合。索引可借用当前调用期间只读的 records/plan，不能跨 apply、扩容或提交持有指针；完整请求与旧值核对仍须执行。此类查找顺序不得改变传播候选或 descriptor 输出顺序。 已维护且仍适用的稳定身份直接复用，不为每条弧重新扫描同源邻接；native 槽位复用时，必须在更新后的投影前完成 stable ref 重绑，并保留当前图的其余 key 字段及边界检查。
+
+## Stage 13 RC 与生产接入
+
+树形 RC 只在 CPU 准备拓扑、负载和结构归约；实时驱动电阻、极点、residue、有效电容、延迟及 slew 在所选 backend 求值，不把 native timing 答案当作 CUDA 输入。保持原生单位、表格 raw-load 语义、阈值与 fallback；无寄生的 ceil 规则不随之改动。
+
+单个 driver 的候选求值和缓存更新必须有唯一写入者，各 sink 只读已完成的 driver 结果。数值失败不能发布部分结果或旧结果；诊断开关不能控制必要边界、数值和失败处理。完整 native 对照仅在开发诊断运行。新增 RC 支持须经过独立 native 和真实物理批次验收后才解除 unsupported。
+
+共享 RC 结构按 net 持有不可变 owner，旧 owner 必须活到 pending/undo 使用结束；同负载 lane 可以共享归约。Q 没有出弧时，顺序 seed 仍须持有计算需要的模型。不要按 table 内容等价合并 native child/cache 身份；局部 expected 检查优先使用同一 owner，独立完整值证明仅在验收运行。
+
+propagated clock 的 effective state 必须来自当前 physical 传播结果；ideal 语义不变。SDC 名单先完整验证再修改，不静默忽略命令。测试同时检查实际支持标志及非零时钟值，防止目标和 oracle 同时落到 ideal 仍比较通过。scalar RAT 与报告路径 CRPR 使用各自既有调用口径，不能重复加修正。
+
+RC 求值中的“模型不可用”与非有限数值失败必须分开。native 允许继续下一模型或普通 NLDM 的情况须保留其 fallback；非有限输入或结果不能通过 fallback 隐藏。普通 NLDM 的负载沿用 native DFS 子树累加值，不能因数学等价改用不同求和顺序的 Arnoldi total-capacitance，ceil 换算会放大舍入差异。driver 缓存只在真实 miss 完成后发布，hit 不改变 last-miss 选择；Instance CTQ 副本与 Liberty graph child 不能按表内容合并身份。
+
+输入端口 RC 使用实际 TimingLibrary 的全局五个阈值，按 reference payload 保存一份。net 初始化跳过尚未建立的 driver cache，动态求值依次使用完成的 driver、port 和 raw-tree fallback；无效数值不能当作零延迟。RC 初始化按 driver 内原生 cell ordinal 完成，不改 Arc 物理槽位或统一传播候选顺序。
+
+CUDA RC 缓存是单份传播 scratch，每轮清空逻辑记录；graph child 每 analysis/output 最多五个不同 input slew，CTQ 独立域最多一个，不乘 path tag 或 fanout。driver owner 完成 slew 选择后发布各 family 的最后真实 miss，sink 只读完成记录；同值 table interning 不合并 native child 身份。变化的 RC owner 不进入永久追加的 Liberty pool，提交或撤销后释放/复用无 live 引用的版本。
+
+RC 编辑复用局部 native/graph 撤销。prepared tree 在 apply 前校验完整 terminal、连通性与数值；撤销保存实际旧 map node 和共享 owner。负载变化必须刷新受影响 net 的全部 terminal、driver 与独立 Q seed，不只刷新移动 sink。设备 RC buffer、descriptor 和 owner 配对切换，上传/恢复排空 stream 后才释放旧对象；复用已有工作容量，不增加整图事务副本。
+
+### 物理共同提交与恢复
+
+- 恢复目录只由一个 owner 持锁。基线绑定真实输入文件内容、分析/构建配置、RC 层参数和 IDB 几何身份；每批仅保存稳定编辑、精确 DBU/朝向、实际执行模式与前后 generation。
+- committed 文件的 no-replace rename 是提交点。它之前完成计算、记录写出及共同资格检查；之后只做既有无抛出提交与缓存代数更新，不插入查询物化。
+- native 撤销要求 authority 仍有效。异常分支先在操作 guard 内结束事务并撤销，再根据提交标记、设备和日志健康状态 poison。普通创建文件失败且无残留可在成功撤销后重试。
+- 显式恢复保持会话未开放状态，按原记录逐批重放，不重写已提交文件，不累计第二份历史前缀。恢复失败后的物理前缀不能充当新基线；再次恢复必须重新加载原 checkpoint。
+- 文件原子改名覆盖 worker 失败；没有 fsync 时不宣称断电持久性。诊断读取、故障注入及恢复等价比较遵守原 ON 边界，实际恢复和必需身份检查保留在 OFF。
+
+### Stage 13 生产接入维护
+
+实验 TIMING_OPT 位于 CTS、基线合法化之后、routing 之前；普通流程的默认模式不变。重试自身产物失败时保留已提交 journal 和累计 greedy 预算；重跑上游时清除绑定旧 checkpoint 的后继历史。最终产物以当前 generation manifest 为唯一入口，routing 不得退回旧二进制 DB 或固定文件名。
+
+生产 greedy 使用当前 RC、负载和 Liberty；继续以既有正 gain 规则选取，不新增以实际 WNS/TNS 退化撤销成功批次的策略。无正 gain、无合法位置及预算耗尽分别记录；没有真实 edits 的 baseline 不算增量验收。
+
+仓内物理 probe 只负责加载、提交、查询与记录，独立 fresh 分支重新加载提交后的 DEF/netlist，并由 native CPU/full 重建 RC 和传播。完整比较、canary 与故障注入只属开发验收；输入身份使用分块摘要，不内嵌 Liberty/LEF 文件内容。usage 只保留使用步骤，运行结果放阶段报告和独立证据目录。
+
+生产消费者只请求实际使用的数据。物理 greedy 通过现有查询的 summary_only 取得 generation 与 QOR；完整查询默认仍返回 timing/paths。摘要查询保留物化和报告准备，但不构造或跨 binding 传递未请求的完整返回对象。此选择不控制开发诊断。

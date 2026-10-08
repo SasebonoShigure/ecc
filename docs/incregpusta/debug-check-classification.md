@@ -160,3 +160,57 @@ Stage 12 诊断回放仅复制其实际修改的外层容器、节点 net_name �
 ### Stage 12 诊断比较器的 seed 查找
 
 完整 root seed/winner 比较只属于 ON 开发验收。比较器按节点一次分组，列表保留重复项与全部 tag，继续执行原来的唯一匹配、数值和 CRPR 判定；不将二次扫描当作正确性要求。独立审查、行为 canary 和真实 receipt 调用剖析记录见 Stage 12 实施记录。
+
+## Stage 13 RC 数学路径（接入中）
+
+| 数据 / 检查 | 用途与成本 | 归属 |
+|---|---|---|
+| 根树、terminal、单位归一化后的非负有限 R/C | 外部边界；O(RC nodes + terminals) | OFF/ON |
+| Arnoldi/DMP 结构归约、driver 实时求值、各 sink 波形 | 计算所需；原生固定模型阶数，sink 数不限；不能用 native 答案代替 | OFF/ON |
+| 数值溢出、求值不可用、波形搜索不能完成 | 防止错误结果与设备长时间无响应；失败不发布 | OFF/ON；当前搜索上限限制见报告，不算完整 RC 验收 |
+| 独立 native DCTask 对照、解析 RC、自有输出与不同 launch 形状比较 | 开发正确性证明 | 测试入口；完整 native 对照仅 ON |
+| CUDA memcheck/initcheck/racecheck/synccheck、CPU sanitizer | 实际内存和并发检查 | 独立验收进程；不进入生产 |
+| 按 clock owner 发布 physical/effective state、deferred launch、SDC clock 名单完整核对 | 实际传播和输入边界；沿已有节点/clock 遍历执行 | OFF/ON |
+| full/局部 RC owner、native cell arc ordinal、pin/port 负载与阈值 | 实际求值输入；模型按 net 共享，修改后替换受影响 owner | OFF/ON；受控 pre-route 生产求值已接通，完整阶段验收另记 |
+| 全局 input-port 阈值、CPU RC 初始化顺序及 net fallback | 必要求值输入与数值失败处理；阈值单份、仅 RC cell 临时分组 | OFF/ON；仅对完整准备的 pre-route tree 解除对应拒绝 |
+| CUDA RC 结构打包、raw-load table 与 driver/load 求值 | 归约按 owner 共享、terminal payload 不乘 child/fanout；仅更新受影响 net | OFF/ON 功能；CPU 全值差分只在 ON 测试 |
+| start seed 与 RC net 局部 expected/旧值/容量及撤销 | 事务功能；预留空间、保存实际变更位置 | OFF/ON |
+| prepared RC tree 完整 terminal、N−1/连通性、有限单位与值 | 外部输入边界；仅受影响 net，O(nodes + edges + terminals) | OFF/ON |
+| raw RC map node、局部 host binding 及设备 descriptor/buffer 撤销 | 实际事务隔离；只保存受影响对象，旧值只存一份 | OFF/ON |
+| RC 事务的独立 fresh 导出、逐字段比较及逐分配失败扫查 | 验证完整性与异常安全；不产生生产提交授权 | 测试入口，完整差分与故障注入仅 ON |
+| propagated Q/D prefix、winner/level、fresh/native 与非零 effective clock 证明 | 独立验收 | ON；不进入普通性能路径 |
+
+已接通固定 propagated clock 和受控 pre-route RC；一般 SPEF、mesh、gating/divider 等范围外语义仍拒绝。完整物理/寄生/CRPR 阶段验收单独记录。详见 [Stage 13 报告](stage13-progress-report.md)。
+
+### Stage 13：物理准备与撤销（实施中）
+
+- OFF/ON：物理编辑的 owner、名称冲突、data-net/clock 边界、局部旧连接、容量和 DBU 范围校验；按受影响 net 构造连接引用与索引，保存真实旧值到共同提交完成。
+- OFF/ON：物理对象、pin、shape 和 via 的异常安全所有权；准备失败回收、放弃撤销、提交转移所有权属于功能安全。
+- 测试专用：完整连接/坐标比较、实际分配计数；ON 测试逐分配故障注入。生产不链接分配拦截器，也不执行全设计连接扫描。
+
+### Stage 13：共同提交记录与恢复（接入中）
+
+| 工作 | 用途与成本 | 归属 |
+|---|---|---|
+| checkpoint 文件 SHA、实际 IDB 几何及分析/RC 配置身份 | 初始化/恢复时一次，绑定实际输入；不逐批扫描 | OFF/ON |
+| 本批编辑与坐标记录、独占锁、原子提交标记 | 实际故障恢复；成本随本批记录大小变化 | OFF/ON |
+| 局部撤销、日志清理失败及设备 poison 传播 | 防止跨层状态分叉与旧结果泄漏 | OFF/ON |
+| 逐条已提交记录重放 | 显式恢复操作，不重新写记录或复制历史前缀 | OFF/ON |
+| marker 前后进程退出、文件描述符耗尽与输出失败测试 | 开发验收的真实错误注入，不增加生产运行期开关 | 测试程序 |
+| 恢复/撤销后的完整 timing、QOR、paths 等价比较 | 独立开发验收，不进入普通生产提交 | 测试程序；生产诊断仅 ON |
+
+当前共同 CPU/full 与恢复入口尚在运行验证，不能据此解除四模式生产 RC gate 或标记 Stage 13 完成。
+
+- Stage 13 当前 generation 结果查询是生产消费者：必须在 OFF/ON 中检查 session/owner/generation，在受保护操作中按需物化 timing，再准备 QOR/paths；测试中的重复读取与独立数值对照属于开发验收，OFF 普通运行不执行独立 oracle。
+
+### Stage 13：生产消费者与验收入口
+
+| 工作 | 归属及成本 |
+|---|---|
+| greedy 当前结果、RC/Liberty gain 和局部冲突筛选 | OFF/ON 实际消费者；沿既有正 gain 规则，真实退化不触发新增收益回滚 |
+| 当前 generation 的几何、power/timing/SDF/DEF/netlist 与 manifest | OFF/ON 产物消费者；完整生成后发布。routing/公开读取核对 generation、文件大小与分块摘要，不在每批提交生成产物 |
+| TIMING_OPT 输出失败后的 journal 恢复与产物重试 | OFF/ON 功能；复用已完成 greedy 停止记录，不重复编辑。上游重新执行使旧 checkpoint 历史失效 |
+| 物理 trace、独立 fresh native/full、完整 NeutralWire 和 canary | 仅开发验收；完整读回只在 ON 编译。OFF 执行真实批次但不运行完整 oracle |
+| 启动/关闭、实际分配栈、传输和 CUDA sanitizer | 独立验收进程；不得把分配事件数解释为函数调用次数，不把剖析结果当性能统计 |
+
+- 物理 QOR 摘要查询：OFF/ON 共有的消费者需求；保留当前 generation 物化和报告准备，跳过完整 timing vector、paths JSON 及 Python 转换。greedy 每轮使用该路径。完整结果仅在实际消费者请求时构造，不能把它误归为 ON 诊断。

@@ -1,9 +1,11 @@
 """Python lifecycle wrapper for the native incremental-STA session shell."""
 
-from collections.abc import Callable, Mapping
+import json
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from importlib import import_module
 from types import TracebackType
-from typing import Protocol, TypeVar, runtime_checkable
+from typing import Literal, Protocol, TypeVar, runtime_checkable
 
 from chipcompiler.tools.ecc.sta_mode import (
     StaBackend,
@@ -32,6 +34,12 @@ from chipcompiler.tools.ecc.sta_snapshot import (
 )
 
 
+@dataclass(frozen=True)
+class PhysicalStaBatchResult:
+    generation: int
+    execution: StaExecutionRecord
+
+
 class _NativeStaSession(Protocol):
     @property
     def state(self) -> str: ...
@@ -40,7 +48,7 @@ class _NativeStaSession(Protocol):
     def session_token(self) -> object: ...
 
     @property
-    def csr_snapshot_observation(self) -> object: ...
+    def csr_snapshot_observation(self) -> Mapping[object, object] | None: ...
 
     def initialize(
         self,
@@ -51,6 +59,34 @@ class _NativeStaSession(Protocol):
     ) -> None: ...
 
     def run_full_baseline(self) -> Mapping[str, object]: ...
+
+    def run_physical_baseline(
+        self, *, bottom_layer: str, top_layer: str, horizontal_layer: str,
+        vertical_layer: str, recovery_directory: str,
+        checkpoint_files: Mapping[str, str],
+    ) -> Mapping[str, object]: ...
+
+    def apply_physical_batch(self, *, batch_json: str) -> Mapping[str, object]: ...
+
+    def recover_physical_baseline(
+        self, *, bottom_layer: str, top_layer: str, horizontal_layer: str,
+        vertical_layer: str, recovery_directory: str,
+        checkpoint_files: Mapping[str, str],
+    ) -> Mapping[str, object]: ...
+
+    def read_physical_result(self, *, summary_only: bool = False) -> Mapping[str, object]: ...
+
+    def select_physical_buffers(
+        self, *, expected_generation: int, cell_names: list[str], top_k: int, max_buffers: int,
+    ) -> str: ...
+
+    def publish_physical_artifacts(self, *, expected_generation: int) -> str: ...
+
+    def read_physical_artifacts(self, *, expected_generation: int) -> str: ...
+
+    def read_physical_placement(
+        self, *, expected_generation: int, cell_names: list[str],
+    ) -> Mapping[str, object]: ...
 
     def close(self) -> None: ...
 
@@ -228,6 +264,12 @@ def _require_session_token(value: object) -> int:
     return value
 
 
+
+def _require_generation(value: int) -> None:
+    if type(value) is not int or not 0 <= value <= _MAX_SESSION_TOKEN:
+        raise ValueError("physical generation must be uint64")
+
+
 class IncrementalStaSession:
     """Own one native STA lifecycle and validate its execution telemetry."""
 
@@ -361,6 +403,134 @@ class IncrementalStaSession:
             )
         return record
 
+    def run_physical_baseline(
+        self, *, bottom_layer: str, top_layer: str, recovery_directory: str,
+        checkpoint_files: Mapping[str, str], horizontal_layer: str = "",
+        vertical_layer: str = "",
+    ) -> StaExecutionRecord:
+        if not self._entered or self._closed or self._native_session is None:
+            raise RuntimeError("STA session is not active")
+        native_session = self._native_session
+        record = execution_record_from_mapping(self._call_native(
+            lambda: native_session.run_physical_baseline(
+                bottom_layer=bottom_layer, top_layer=top_layer,
+                horizontal_layer=horizontal_layer, vertical_layer=vertical_layer,
+                recovery_directory=recovery_directory,
+                checkpoint_files=dict(checkpoint_files),
+            )
+        ))
+        if record != self._expected_record:
+            raise StaExecutionContractError(
+                "native physical STA execution record differs from the preflight outcome"
+            )
+        return record
+
+    def apply_physical_batch(
+        self, *, expected_generation: int, edits: Sequence[Mapping[str, object]],
+    ) -> PhysicalStaBatchResult:
+        if not self._entered or self._closed or self._native_session is None:
+            raise RuntimeError("STA session is not active")
+        native_session = self._native_session
+        _require_generation(expected_generation)
+        payload = json.dumps({
+            "schema_version": "physical-sta-batch/1.0.0",
+            "expected_generation": expected_generation,
+            "edits": [dict(edit) for edit in edits],
+        }, allow_nan=False)
+        result = self._physical_batch_result(self._call_native(
+            lambda: native_session.apply_physical_batch(batch_json=payload)
+        ))
+        if result.generation != expected_generation + 1:
+            raise StaExecutionContractError("native physical batch returned the wrong generation")
+        return result
+
+    def recover_physical_baseline(
+        self, *, bottom_layer: str, top_layer: str, recovery_directory: str,
+        checkpoint_files: Mapping[str, str], horizontal_layer: str = "",
+        vertical_layer: str = "",
+    ) -> PhysicalStaBatchResult:
+        if not self._entered or self._closed or self._native_session is None:
+            raise RuntimeError("STA session is not active")
+        native_session = self._native_session
+        return self._physical_batch_result(self._call_native(
+            lambda: native_session.recover_physical_baseline(
+                bottom_layer=bottom_layer, top_layer=top_layer,
+                horizontal_layer=horizontal_layer, vertical_layer=vertical_layer,
+                recovery_directory=recovery_directory,
+                checkpoint_files=dict(checkpoint_files),
+            )
+        ))
+
+    def _physical_batch_result(self, result: Mapping[str, object]) -> PhysicalStaBatchResult:
+        if set(result) != {"generation", "execution"}:
+            raise StaExecutionContractError("native physical batch result fields differ")
+        generation = result["generation"]
+        if type(generation) is not int or not 0 <= generation <= _MAX_SESSION_TOKEN:
+            raise StaExecutionContractError("native physical batch generation is invalid")
+        raw_execution = result["execution"]
+        if not isinstance(raw_execution, Mapping):
+            raise StaExecutionContractError("native physical execution must be a mapping")
+        execution = execution_record_from_mapping(raw_execution)
+        if (execution.requested_backend != self._request.backend
+                or execution.requested_update_strategy != self._request.update_strategy
+                or execution.fallback_policy != self._request.fallback_policy):
+            raise StaExecutionContractError("native physical execution request differs")
+        return PhysicalStaBatchResult(generation, execution)
+
+    def read_physical_placement(
+        self, *, expected_generation: int, cell_names: Sequence[str],
+    ) -> Mapping[str, object]:
+        if not self._entered or self._closed or self._native_session is None:
+            raise RuntimeError("STA session is not active")
+        _require_generation(expected_generation)
+        native_session = self._native_session
+        return self._call_native(lambda: native_session.read_physical_placement(
+            expected_generation=expected_generation, cell_names=list(cell_names),
+        ))
+
+    def select_physical_buffers(
+        self, *, expected_generation: int, cell_names: Sequence[str], top_k: int, max_buffers: int,
+    ) -> Mapping[str, object]:
+        if not self._entered or self._closed or self._native_session is None:
+            raise RuntimeError("STA session is not active")
+        for value in (expected_generation, top_k, max_buffers):
+            _require_generation(value)
+        if not top_k or not max_buffers:
+            raise ValueError("greedy budgets must be positive")
+        native = self._native_session
+        return json.loads(self._call_native(lambda: native.select_physical_buffers(
+            expected_generation=expected_generation, cell_names=list(cell_names),
+            top_k=top_k, max_buffers=max_buffers,
+        )))
+
+    def publish_physical_artifacts(self, *, expected_generation: int) -> Mapping[str, object]:
+        if not self._entered or self._closed or self._native_session is None:
+            raise RuntimeError("STA session is not active")
+        _require_generation(expected_generation)
+        native = self._native_session
+        return json.loads(self._call_native(
+            lambda: native.publish_physical_artifacts(expected_generation=expected_generation)
+        ))
+
+    def read_physical_artifacts(self, *, expected_generation: int) -> Mapping[str, object]:
+        if not self._entered or self._closed or self._native_session is None:
+            raise RuntimeError("STA session is not active")
+        _require_generation(expected_generation)
+        native = self._native_session
+        return json.loads(self._call_native(
+            lambda: native.read_physical_artifacts(expected_generation=expected_generation)
+        ))
+
+    def read_physical_result(self, *, summary_only: bool = False) -> Mapping[str, object]:
+        if not self._entered or self._closed or self._native_session is None:
+            raise RuntimeError("STA session is not active")
+        if type(summary_only) is not bool:
+            raise ValueError("physical summary_only must be a boolean")
+        native_session = self._native_session
+        return self._call_native(
+            lambda: native_session.read_physical_result(summary_only=summary_only)
+        )
+
     def close(self) -> None:
         if self._closed:
             return
@@ -415,7 +585,7 @@ class IncrementalStaSession:
         _exc_type: type[BaseException] | None,
         exc: BaseException | None,
         traceback: TracebackType | None,
-    ) -> bool:
+    ) -> Literal[False]:
         try:
             self.close()
         except BaseException as cleanup_error:

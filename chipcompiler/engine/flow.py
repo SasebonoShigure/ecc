@@ -236,6 +236,17 @@ class EngineFlow:
                         success = False
                         break
             case StepEnum.TIMING_OPT.value:
+                if workspace_step.tool == "ecc":
+                    from chipcompiler.tools.ecc.physical_artifacts import read_physical_artifacts
+
+                    if output.dir is None:
+                        return False
+                    try:
+                        artifacts = read_physical_artifacts(output.dir / "physical_session")
+                    except (OSError, ValueError, KeyError, TypeError):
+                        return False
+                    output.def_ = artifacts.files["design.def"]
+                    output.verilog = artifacts.files["design.v"]
                 if os.path.exists(output.def_ or "") and os.path.exists(output.verilog or ""):
                     success = True
             case _:

@@ -330,3 +330,51 @@ class TestInitDbEngineForStep:
 
         assert flow.init_db_engine_for_step(flow.workspace_steps[0]) is True
         assert flow.engine_db is engine_db
+
+
+@pytest.mark.parametrize("entry", ["cli", "gui"])
+def test_physical_step_retry_keeps_committed_history_and_completion(tmp_path, monkeypatch, entry):
+    from chipcompiler.data import StepEnum
+    from chipcompiler.runtime.workspace_api import WorkspaceRuntimeApi
+
+    name = StepEnum.TIMING_OPT.value
+    flow = _make_run_flow(tmp_path, [(name, StateEnum.Imcomplete.value)])
+    step = flow.get_workspace_step(name)
+    journal = step.output.dir / "physical_session"
+    journal.mkdir(parents=True)
+    saved = {
+        journal / "baseline.json": "baseline",
+        journal / "committed-1.json": "committed edit",
+        step.output.dir / "greedy-config.json": "original budget",
+        step.output.dir / "greedy-complete.json": "generation one",
+    }
+    for path, content in saved.items():
+        path.write_text(content)
+    if entry == "cli":
+        calls = _fake_execution(flow, monkeypatch)
+        assert rerun.run_only(flow, name).ok
+        assert calls == [(name, True)]
+    else:
+        WorkspaceRuntimeApi._prepare_steps_for_rerun(flow.workspace, flow, [step])
+    assert {path: path.read_text() for path in saved} == saved
+
+
+@pytest.mark.parametrize("entry", ["cli", "gui"])
+def test_upstream_rerun_discards_physical_history_bound_to_old_checkpoint(
+    tmp_path, monkeypatch, entry
+):
+    from chipcompiler.data import StepEnum
+    from chipcompiler.runtime.workspace_api import WorkspaceRuntimeApi
+
+    upstream, physical = StepEnum.LEGALIZATION.value, StepEnum.TIMING_OPT.value
+    flow = _make_run_flow(tmp_path, [(upstream, "Success"), (physical, "Success")])
+    step = flow.get_workspace_step(physical)
+    journal = step.output.dir / "physical_session"
+    journal.mkdir(parents=True)
+    (journal / "baseline.json").write_text("old checkpoint")
+    if entry == "cli":
+        _fake_execution(flow, monkeypatch)
+        assert rerun.run_from(flow, upstream).ok
+    else:
+        WorkspaceRuntimeApi._prepare_steps_for_rerun(flow.workspace, flow, flow.workspace_steps)
+    assert not journal.exists()

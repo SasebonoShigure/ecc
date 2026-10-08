@@ -952,6 +952,19 @@ class WorkspaceRuntimeApi:
                     directory,
                     workspace_step.name,
                 )
+                # Keep the physical commit journal for a single-step retry.
+                from chipcompiler.data import StepEnum
+
+                output_dir = getattr(workspace_step.output, "dir", None)
+                if (
+                    workspace_step is unique_steps[0]
+                    and workspace_step.name == StepEnum.TIMING_OPT.value
+                    and workspace_step.tool == "ecc"
+                    and output_dir
+                    and resolved == Path(output_dir).resolve()
+                    and (resolved / "physical_session" / "baseline.json").is_file()
+                ):
+                    continue
                 if resolved in known_directories:
                     continue
                 known_directories.add(resolved)

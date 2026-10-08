@@ -134,6 +134,7 @@ jobs:
             dist/ecc.tar
 
   lint:
+    name: CPU-fast and lint
     needs: check-version
     runs-on: ubuntu-latest
     container: quay.io/pypa/manylinux_2_34_x86_64
@@ -145,6 +146,15 @@ jobs:
 
       - name: Setup Python dependencies
         uses: ./.github/actions/setup-python-deps
+
+      - name: IncreGPUSTA CPU-fast
+        run: |
+          uv run --no-sync pytest \
+            test/tools/ecc/test_sta_session.py \
+            test/tools/ecc/test_physical_artifacts.py \
+            test/tools/ecc/test_physical_greedy.py \
+            test/tools/ecc/test_physical_runner.py \
+            test/test_engine_rerun.py -q
 
       - name: Ruff format check
         run: uv run --no-sync ruff format --check chipcompiler test

@@ -266,6 +266,10 @@ def _existing_input_path(path: Path | None) -> str | None:
 def create_db_engine(workspace: Workspace, step: WorkspaceStep) -> ECCToolsModule:
     """"""
 
+    from chipcompiler.tools.ecc.physical_runner import bind_physical_routing_input
+
+    physical_handoff = bind_physical_routing_input(workspace, step)
+
     def load_data():
         ecc_module = ECCToolsModule()
 
@@ -326,7 +330,8 @@ def create_db_engine(workspace: Workspace, step: WorkspaceStep) -> ECCToolsModul
             if not ecc_module.read_def(def_path):
                 return None
         elif def_path is not None:
-            ecc_module.read_def(def_path)
+            if not ecc_module.read_def(def_path) and physical_handoff:
+                raise RuntimeError("routing rejected the current physical generation DEF")
         elif verilog_path:
             # else, read step output verilog
             ecc_module.read_verilog(verilog=verilog_path, top_module=workspace.design.top_module)
@@ -348,10 +353,12 @@ def create_db_engine(workspace: Workspace, step: WorkspaceStep) -> ECCToolsModul
     if not is_eda_exist() or not is_enable_setup():
         return None
     try:
-        ecc_module = None if step.name == StepEnum.LVS.value else load_data()
+        ecc_module = None if physical_handoff or step.name == StepEnum.LVS.value else load_data()
         if ecc_module is None:
             ecc_module = load_design()
     except Exception as e:
+        if physical_handoff:
+            raise
         workspace.logger.warning("Failed to load ECC data; falling back to design input: %s", e)
         ecc_module = load_design()
 
@@ -571,6 +578,11 @@ def run_step(workspace: Workspace, step: EccStep, ecc_module: ECCToolsModule | N
             state = run_cts(workspace=workspace, step=step, ecc_module=ecc_module)
         case StepEnum.LEGALIZATION.value:
             state = run_legalization(workspace=workspace, step=step, ecc_module=ecc_module)
+        case StepEnum.TIMING_OPT.value:
+            from chipcompiler.tools.ecc.physical_runner import run_physical_timing_opt
+
+            module = get_eda_instance(workspace=workspace, step=step, ecc_module=ecc_module)
+            state = module is not None and run_physical_timing_opt(workspace, step, module)
         case StepEnum.ROUTING.value:
             state = run_routing(workspace=workspace, step=step, ecc_module=ecc_module)
         case StepEnum.DRC.value:
@@ -713,11 +725,21 @@ def run_routing(
     """
     run routing
     """
+    from chipcompiler.tools.ecc.physical_runner import bind_physical_routing_input
+
+    physical_handoff = bind_physical_routing_input(workspace, step)
+    existing_module = ecc_module is not None
     reslut = False
 
     sub_flow = EccSubFlow(workspace=workspace, workspace_step=step)
 
     ecc_module = get_eda_instance(workspace=workspace, step=step, ecc_module=ecc_module)
+
+    if (
+        physical_handoff and existing_module and ecc_module is not None
+        and not ecc_module.read_def(str(step.input.def_))
+    ):
+        raise RuntimeError("routing rejected the current physical generation DEF")
 
     if ecc_module is not None:
         sub_flow.update_step(step_name=EccSubFlowEnum.load_data.value, state=StateEnum.Success)
