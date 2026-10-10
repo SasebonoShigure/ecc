@@ -213,4 +213,25 @@ Stage 12 诊断回放仅复制其实际修改的外层容器、节点 net_name �
 | 物理 trace、独立 fresh native/full、完整 NeutralWire 和 canary | 仅开发验收；完整读回只在 ON 编译。OFF 执行真实批次但不运行完整 oracle |
 | 启动/关闭、实际分配栈、传输和 CUDA sanitizer | 独立验收进程；不得把分配事件数解释为函数调用次数，不把剖析结果当性能统计 |
 
-- 物理 QOR 摘要查询：OFF/ON 共有的消费者需求；保留当前 generation 物化和报告准备，跳过完整 timing vector、paths JSON 及 Python 转换。greedy 每轮使用该路径。完整结果仅在实际消费者请求时构造，不能把它误归为 ON 诊断。
+- Stage 13 的逐轮 QOR 摘要查询属于历史消费者路径；Stage 14 默认 greedy 改用紧凑候选输入及 commit generation。显式 QOR/完整查询仍是 OFF/ON 功能消费者，不属于诊断。
+
+
+## Stage 14：直接编辑、候选读取与末轮产物
+
+| 工作 | 用途、成本与归属 |
+|---|---|
+| stable key、局部旧连接/负载、generation、容量和数值检查 | OFF/ON；直接 CSR 准备的适用性及安全边界，真实 undo 保存旧值 |
+| IDB/位置/RC 与 host/device CSR 的共同事务 | OFF/ON；按实际变更保留撤销和共享模型 owner，成功不撤销；必要 full 重建与全图传播另计 |
+| 先编辑 native 图再捕获/转换的普通 CSR 批次路径 | 删除；不保留双份权威图，也不移入 ON 作为同源证明 |
+| 紧凑候选 slack/slew/有效性与 RC/Liberty gain | OFF/ON；从所选 backend 当前结果取得，不生成 native 报告或完整路径 D2H；必要节点扫描如实计量 |
+| native 拓扑视图、完整 timing/QOR/paths、power/SDF/DEF/netlist | 仅实际消费者请求时在 OFF/ON 执行；默认末轮一次，显式中间查询有效，同代缓存复用 |
+| 报告临时修改的 path entry 撤销 | OFF/ON；只保存实际修改位置，成功和异常后恢复，保护下一轮候选输入 |
+| 默认每轮仅服务日志的 QOR/WNS/TNS、路径分组与序列化 | 删除及其专用复制/遍历；未执行指标不填成功值 |
+| 独立 fresh native、全值/winner/CRPR/level 比较与故障注入 | ON 开发验收；不参与普通 OFF 提交或性能采样 |
+| 四模式完整循环计时及配对统计 | OFF 独立性能入口；包含最终物化与产物，正确性/诊断为 not_run；实际调用、分配、传输剖析另跑 |
+
+Stage 14 已完成功能、路径剖析及用户调整后的参考成本验收；具体证据、负结果与限制见 [实施记录](stage14-progress-report.md)。
+
+### Stage 14 受控基线复用
+
+私有 native-export 构造只接受现有 session owner 的受控导出；session/generation、高水位、数组边界和下游 index/state 检查保留在 OFF/ON。重复 reference 指纹重算及刚构建 state 的独立完整证明仅 ON；公共裸输入 factory 仍完整验证。resolver 复用同一导出；batch index 撤销保存实际旧值并预分配，均为 OFF/ON 功能。

@@ -1,10 +1,10 @@
 # ECC 中复现 IncreGPUSTA 的分阶段实施计划
 
-> 状态：`v3.2-stage13-in-progress`；Stage 0–6 清理已本地提交（ecc `356fa09`、ecc-tools `4b0398753`），Stage 7–8 已完成真实 GPU 验收并提交（ecc `872d474`、ecc-tools `044399b41`）。Stage 9 hybrid CUDA incremental 实现与本机验收完成，阶段性提交为 ecc `a8697e5`、ecc-tools `73aa7816f`；随后 Stage 9 状态文档已提交至 ecc fc6379e，均未 push。见 [Stage 9 报告](incregpusta/stage9-progress-report.md)、[Stage 8 报告](incregpusta/stage8-progress-report.md)、[Stage 7 报告](incregpusta/stage7-progress-report.md)、[清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。历史验收记录保留；本次 [CUDA CI 验证报告](incregpusta/cuda-ci-validation-20260914.md) 记录了三个真实设计的支持缺口。Stage 10 六类语义及三设计四模式、真实 Q/D 两批、OFF/ON 与恢复功能验收完成，见 [Stage 10 报告](incregpusta/stage10-progress-report.md)；lint/type 的未通过项已记录。Stage 10 已于 2026-09-16 提交（ecc-tools 6921b6089）；Stage 10 后内存清理的提交为 ecc `dbb1c8e`、ecc-tools `fec270b8a`。原 Stage 11 实现已撤回。新 Stage 11 已按批准的[详细计划](incregpusta/stage11-detailed-plan.md)完成功能、事务安全和默认路径剖析验收，按用户授权本地提交，未 push；既有类型检查失败和实际限制见[实施报告](incregpusta/stage11-progress-report.md)。Stage 12 的并行传播、full Kahn、patch/undo、批量传输及本轮参考测量已收尾；独立构建回归、CUDA sanitizer、必测用例逐批 native oracle 和跨构建对照证据已记录，CPU sanitizer 原始失败、类型检查失败及权限限制保留。按用户调整后的共享 GPU、每模式预热 1 次/采样 3 次协议，十三组（含宽层百万节点）均绑定修复版 1ca4e4e8，旧版用例重测和最终核验、归档完成；旧数据全部保留。原严格性能门仍为 not_run，不宣称正式高性能验收通过；见 [Stage 12 详细计划](incregpusta/stage12-detailed-plan.md)及[实施记录](incregpusta/stage12-progress-report.md)。Stage 12 已按用户授权本地提交（ecc d91e536、ecc-tools 42b64be72），未 push；Stage 13 已按批准的[详细计划](incregpusta/stage13-detailed-plan.md)完成主体实现与服务器物理正确性验证，结果见[报告](incregpusta/stage13-progress-report.md)；GPU CI 接入待确定，整阶段尚未关闭。当前 Stage 13 实现已于 2026-10-08 按用户授权本地提交，未 push；Stage 14 尚未实施。
+> 状态：`v3.5-stage14-accepted`；Stage 0–6 清理已本地提交（ecc `356fa09`、ecc-tools `4b0398753`），Stage 7–8 已完成真实 GPU 验收并提交（ecc `872d474`、ecc-tools `044399b41`）。Stage 9 hybrid CUDA incremental 实现与本机验收完成，阶段性提交为 ecc `a8697e5`、ecc-tools `73aa7816f`；随后 Stage 9 状态文档已提交至 ecc fc6379e，均未 push。见 [Stage 9 报告](incregpusta/stage9-progress-report.md)、[Stage 8 报告](incregpusta/stage8-progress-report.md)、[Stage 7 报告](incregpusta/stage7-progress-report.md)、[清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。历史验收记录保留；本次 [CUDA CI 验证报告](incregpusta/cuda-ci-validation-20260914.md) 记录了三个真实设计的支持缺口。Stage 10 六类语义及三设计四模式、真实 Q/D 两批、OFF/ON 与恢复功能验收完成，见 [Stage 10 报告](incregpusta/stage10-progress-report.md)；lint/type 的未通过项已记录。Stage 10 已于 2026-09-16 提交（ecc-tools 6921b6089）；Stage 10 后内存清理的提交为 ecc `dbb1c8e`、ecc-tools `fec270b8a`。原 Stage 11 实现已撤回。新 Stage 11 已按批准的[详细计划](incregpusta/stage11-detailed-plan.md)完成功能、事务安全和默认路径剖析验收，按用户授权本地提交，未 push；既有类型检查失败和实际限制见[实施报告](incregpusta/stage11-progress-report.md)。Stage 12 的并行传播、full Kahn、patch/undo、批量传输及本轮参考测量已收尾；独立构建回归、CUDA sanitizer、必测用例逐批 native oracle 和跨构建对照证据已记录，CPU sanitizer 原始失败、类型检查失败及权限限制保留。按用户调整后的共享 GPU、每模式预热 1 次/采样 3 次协议，十三组（含宽层百万节点）均绑定修复版 1ca4e4e8，旧版用例重测和最终核验、归档完成；旧数据全部保留。原严格性能门仍为 not_run，不宣称正式高性能验收通过；见 [Stage 12 详细计划](incregpusta/stage12-detailed-plan.md)及[实施记录](incregpusta/stage12-progress-report.md)。Stage 12 已按用户授权本地提交（ecc d91e536、ecc-tools 42b64be72），未 push；Stage 13 已按批准的[详细计划](incregpusta/stage13-detailed-plan.md)完成主体实现与服务器物理正确性验证，结果见[报告](incregpusta/stage13-progress-report.md)；GPU CI 接入待确定，整阶段尚未关闭。当前 Stage 13 实现已于 2026-10-08 按用户授权本地提交，未 push；新增 Stage 14「CSR 原生编辑与末轮报告优化」，原正式性能评估顺延至 Stage 15，Stage 14 已按[详细计划](incregpusta/stage14-detailed-plan.md)完成直接 CSR 编辑、共同事务、候选最小消费、末轮产物及功能/剖析验收；按用户调整的预热 1 次、采样 3 次完成六组参考成本核验，负结果与限制见[实施记录](incregpusta/stage14-progress-report.md)，未 commit、未 push。Stage 15 尚未实施，正式性能门未通过验收。
 > 文档范围：本计划及阶段说明仅适用于 `IncreGPUSTA`；相关文档维护在 `ecc/docs`，不修改仓库通用 README。
 > 目标仓库：`/home/shigure/code/ecc`
 > 强制开发分支：`IncreGPUSTA`
-> 日期：2026-08-19；最近更新：2026-10-08
+> 日期：2026-08-19；最近更新：2026-10-09
 
 ## 1. 目标、范围与结论
 
@@ -17,7 +17,7 @@
 | GPU | Full | 验证 GPU 数值正确性，也是 GPU incremental 的公平基线 |
 | GPU | Incremental | 复现论文的 Dual-CSR 更新、混合子图 levelization 和全图 GPU propagation |
 
-当前 ECC 的 general iSTA 没有可用于结构修改的增量 STA。名为 `STAInterface::updateTiming()` 的接口仍会重建全图并全量传播；生产 signoff 入口每次调用后还会销毁 STA 状态。仓库中真正的增量时序能力只存在于 iCTS 专用 `FastSTA`，其变更类型主要是 clock buffer master change，不覆盖论文所需的一般 pin/arc 插入与删除。
+阶段 0 分析时，ECC 的 general iSTA 没有可用于结构修改的增量 STA。名为 `STAInterface::updateTiming()` 的接口仍会重建全图并全量传播；生产 signoff 入口每次调用后还会销毁 STA 状态。仓库中真正的增量时序能力只存在于 iCTS 专用 `FastSTA`，其变更类型主要是 clock buffer master change，不覆盖论文所需的一般 pin/arc 插入与删除。
 
 因此需要新增：
 
@@ -28,7 +28,7 @@
 5. 确定性的 greedy buffer insertion 测试驱动；
 6. correctness-first、分相计时、保留原始样本的测试与性能 harness。
 
-不会在第一轮重构整个 ECC 数据模型。现有 `ista::Database` 继续作为 canonical object graph；增量 session 初始化时导出 CSR，提交后由目标 backend 持有当前 generation 的权威 timing 结果。自阶段 11 起，CPU 消费者查询或生成报告时才回传、物化所需 `TimingPoint`/`Arc` 字段；所有公开读取必须得到当前结果，不能暴露旧 native timing。默认一次性 CPU/full 的外部行为保持兼容。
+不会在第一轮重构整个 ECC 数据模型。阶段 0–13 保留 native object graph 并由目标 backend 持有当前 generation 的权威 timing 结果；自阶段 11 起，CPU 消费者查询或生成报告时才按需物化结果。阶段 14 起，native CPU/full 继续以 `ista::Database` 为权威 timing 图；CPU/incremental、CUDA/full、CUDA/incremental 以 CSR 及必要语义索引为会话内权威状态，直接编辑 CSR，仅在最终输出或显式查询需要时构造当前 generation 的 native 视图。物理 IDB 始终持有权威物理状态。所有公开读取必须得到当前结果，不能暴露旧 native timing 或用 CPU full 重算替代目标 backend 结果；默认一次性 CPU/full 的外部行为保持兼容。
 
 ## 2. 必须遵守的执行协议
 
@@ -70,7 +70,7 @@ git -C /home/shigure/code/ecc submodule status --recursive
 
 `ECC_INCREGPUSTA_DEBUG_CHECKS` 默认 OFF，与 CMake Debug/Release 独立。重型诊断、完整 oracle/fresh replay/逐字段比较仅 ON 使用；正式性能运行只使用 OFF，且不自动执行这些验证。必要输入/生命周期/算法错误检查和实际事务恢复始终保留。该规则取代旧阶段文档中将全量诊断嵌入默认运行或每个性能样本的要求；详见开发检查规范和本轮分类/实施报告。
 
-首轮范围为阶段 0–14，依次验收：
+首轮范围为阶段 0–15，依次验收：
 
 | 阶段 | 职责 |
 |---|---|
@@ -78,7 +78,8 @@ git -C /home/shigure/code/ecc submodule status --recursive
 | 11 | 生产路径精简、持久存储与增量事务 |
 | 12 | CUDA 并行计算、规模验证与核心性能验收 |
 | 13 | 生产集成与正确性 CI（原阶段 11） |
-| 14 | 正式性能评估、论文可比性与结论（原阶段 12） |
+| 14 | CSR 原生编辑与末轮报告优化 |
+| 15 | 正式性能评估、论文可比性与结论（原阶段 14，最初为阶段 12） |
 
 后续清理区分三类：无消费者对象、重复状态、失效接口和同源重复证明直接删除；有独立价值的完整 observation、快照/摘要、oracle、验证性重建/传播、逐字段比较、详细审计和故障注入仅 ON；必要功能与安全语义在 OFF/ON 均保留并改进实现。ON 不是保留冗余的理由，诊断专用复制、遍历和序列化须一并移出 OFF。旧阶段文档将整库/整图复制列为功能成本，只描述历史实现，不要求新阶段继续采用；必须保留的是事务原子性、有效结果和实际恢复能力。后续详细计划与规范应同步此边界。
 
@@ -99,7 +100,7 @@ GPU/高内存任务遵守工作区服务器规则：启动前确认本项目及�
 9. **性能 smoke**：从涉及性能的阶段开始运行短 smoke，但性能结果永远不能替代 correctness gate。
 10. **阶段报告**：额外输出一份文字说明，至少包含修改文件和符号、用户可见行为、配置变化、执行命令、测试结果、review 轮次及结论、性能 artifact、已知限制、fallback 次数和下一阶段 gate。
 
-只有“独立审查通过”和“正确性测试通过”同时成立，并满足该阶段额外交付与验收门，阶段才可标为完成；阶段 12 本轮按用户确认完成参考性能测量；阶段 12 的严格高性能结论及阶段 14 仍须通过指定性能门。性能成功不能替代正确性，正确性通过也不能替代高性能验收。GPU 阶段若没有真实 CUDA runner，只能记为 `not verified`，不能以 CPU mock、compile-only 或 skip 将阶段标成完成。
+只有“独立审查通过”和“正确性测试通过”同时成立，并满足该阶段额外交付与验收门，阶段才可标为完成；阶段 12 本轮按用户确认完成参考性能测量；阶段 14 验收路径精简、正确性和实际成本变化；阶段 12 的严格高性能结论及阶段 15 仍须通过指定性能门。性能成功不能替代正确性，正确性通过也不能替代高性能验收。GPU 阶段若没有真实 CUDA runner，只能记为 `not verified`，不能以 CPU mock、compile-only 或 skip 将阶段标成完成。
 
 阶段报告建议采用：
 
@@ -134,7 +135,7 @@ Next gate:
 6. GPU 用 D2D 复制未变旧 level、用 batched H2D 插入新节点，并重建 `node2level`；
 7. 之后运行已有的全图 GPU forward/backward timing propagation。
 
-论文没有给出 GPU affected-cone AT/RAT propagation 算法。其 Sec. II-C 反而说明识别 affected cone 的 GPU 开销可能抵消选择性传播收益。核心 CPU 路径也先保持 full propagation，使它与论文的 GPU 路径同构。CPU/GPU affected-cone propagation 均只列为论文复现后的独立工程扩展，不是阶段 0–14 的前置条件，也不混入核心四模式 speedup。
+论文没有给出 GPU affected-cone AT/RAT propagation 算法。其 Sec. II-C 反而说明识别 affected cone 的 GPU 开销可能抵消选择性传播收益。核心 CPU 路径也先保持 full propagation，使它与论文的 GPU 路径同构。CPU/GPU affected-cone propagation 均只列为论文复现后的独立工程扩展，不是阶段 0–15 的前置条件，也不混入核心四模式 speedup。
 
 Greedy buffer insertion 是论文 case study，用于产生真实结构变更，不是核心图算法。ECC 当前有 iZH fanout buffer insertion，但它不是 timing-driven greedy loop，也没有在每次修改后调用 general iSTA，因此仍需增加确定性 greedy harness。
 
@@ -181,6 +182,8 @@ actual_id(mixed_index) = mixed_index - n_old_levels + n_last_nodes
 
 ## 4. ECC 现状与增量 STA 使用点
 
+本节保留阶段 0 的调用链调查；后续实现状态以阶段记录为准，阶段 14 起的目标流程见第 5 节。
+
 ### 4.1 当前 general STA 调用
 
 | 场景 | 证据 | 结论 |
@@ -208,23 +211,26 @@ actual_id(mixed_index) = mixed_index - n_old_levels + n_last_nodes
 
 ### 5.1 执行流
 
+以下为阶段 14 起的目标流程；阶段 0–13 的实现与验收记录保留。
+
 ~~~text
 ECC config
   -> StaExecutionRequest { backend, update_strategy, fallback_policy }
   -> IncrementalStaSession
        baseline native Database
-          -> one-time CSR export
+          -> one-time CSR export (CSR modes only)
        DesignEditPlan
           -> semantic expansion into TimingGraphDelta
           -> immutable PreparedBatch
-          -> stage canonical/CSR/device changes
+          -> stage native edits (cpu/full) OR direct CSR edits (CSR modes)
           -> full rebuild OR incremental Dual-CSR update
           -> full levelize OR mixed incremental levelize
           -> full CPU/GPU timing propagation
-          -> graph/timing validation
-          -> atomically publish topology + timing fields
+          -> required safety checks; independent diagnostics only ON
+          -> atomically publish topology + authoritative timing results
+          -> consume only data needed for next selection
        telemetry { requested, executed, fallback, phase timings }
-  -> existing reports / QoR outputs
+  -> final reports / QoR / artifacts (or explicit current-generation query)
 ~~~
 
 ### 5.2 模式契约
@@ -261,33 +267,33 @@ fallback_policy = "error"   # error | full_with_record
 
 请求 CUDA 而构建或设备不可用时，默认明确报错；只有显式 fallback policy 才能回退。benchmark 和 incremental correctness case 强制 `error`。
 
-四种组合在每个 mutation batch 后的执行语义必须精确且互斥：
+阶段 14 起，四种组合在每个 mutation batch 后的执行语义必须精确且互斥；此前 native 编辑后转换的实现保留为历史记录：
 
 ~~~text
 cpu/full:
-  apply semantic edit to a fresh/canonical full-run view
+  apply semantic edit to native Database
   -> native full graph rebuild
   -> full CPU levelization and propagation
 
 cpu/incremental:
-  targeted host Dual-CSR update
+  apply semantic edit directly to host Dual-CSR
   -> CPU mixed levelization
   -> full CPU propagation
 
 cuda/full:
-  apply canonical edit
-  -> full CSR re-export/rebuild
+  apply semantic edit to authoritative CSR/semantic state
+  -> full computational CSR rebuild from that state
   -> full required H2D
   -> full GPU levelization and propagation
 
 cuda/incremental:
-  CPU normalize and descriptor generation
+  direct host CSR/semantic edit and descriptor generation
   -> targeted device Dual-CSR update
   -> CPU mixed topo + GPU level reconstruction
   -> full GPU propagation
 ~~~
 
-`cuda/full` 每轮保留完整 CSR 重建、必要图数据 H2D、full levelization 和 full propagation，不能用增量图更新代替 full 语义。自阶段 11–12 起，full/incremental 同等复用不可变模型与分配容量，共用优化后的传播实现；不得保留低效 full 来制造增量收益。`cuda/incremental` 的 CPU Dual-CSR shadow 只作独立 ON oracle。普通样本保存实际模式和轻量分相计时、传输及分配事实；完整 phase trace/逐点证明属于 ON 或独立开发剖析，不嵌入正式性能采样。
+`cuda/full` 每轮保留完整 CSR 重建、必要图数据 H2D、full levelization 和 full propagation，不能用增量图更新代替 full 语义。自阶段 11–12 起，full/incremental 同等复用不可变模型与分配容量，共用优化后的传播实现；不得保留低效 full 来制造增量收益。CSR 模式正常批次不经 native STA 图编辑再转换；编辑、RC/负载准备及 mixed levelization 必需的 host CSR/语义状态属于 OFF 功能状态，只有额外用于独立 CPU 重演比较的副本和计算属于 ON，不保留双份权威图。普通样本保存实际模式和轻量分相计时、传输及分配事实；完整 phase trace/逐点证明属于 ON 或独立开发剖析，不嵌入正式性能采样。
 
 若用户对无 mutation 的一次性 signoff 请求 incremental，系统只能完成 baseline full，必须记录：
 
@@ -352,15 +358,16 @@ iZH 只负责创建 instance/net、重连 pin、合法化和明确的物理 appl
 ~~~text
 create
   -> initialize_full_baseline
-  -> export_csr_once
+  -> export_csr_once (CSR modes only)
   -> [begin
       -> normalize + validate immutable edit
-      -> stage canonical/CSR/device changes in shadow state or reversible log
+      -> stage physical/RC + selected backend state using local undo
       -> execute timing on staged view
       -> check required safety; full diagnostic proofs only ON
       -> atomically publish topology + authoritative timing results
       -> bump generation + commit
-      -> materialize current-generation results when consumed] x N
+      -> consume next-selection data; full query only when explicitly requested] x N
+  -> materialize final generation + publish required artifacts
   -> close
 ~~~
 
@@ -386,13 +393,15 @@ EngineDB/IDB topology
   + host/device CSR
 ~~~
 
-上述层级必须统一 stage/publish，或为每层提供经过 ON fail-injection 验证的 reverse log；任一层失败时全部回滚，OFF 保留真实失败处理。publish 后不可恢复故障 poison 整个跨层 session，并从最后 committed design checkpoint 重建。没有完成这一门禁前，greedy 只生成/re放 semantic trace。
+上述为阶段 13 的事务参与层。阶段 14 起，CSR 模式的每批共同事务保留 IDB、位置、RC 和 host/device CSR 功能状态，native STA 视图改为按需构造且随提交失效的派生缓存；native CPU/full 继续在 native Database 上编辑。实际参与层必须统一 stage/publish，或为每层提供经过 ON fail-injection 验证的 reverse log；任一层失败时全部回滚，OFF 保留真实失败处理。publish 后不可恢复故障 poison 整个跨层 session，并从最后 committed design checkpoint 重建。没有完成这一门禁前，greedy 只生成/re放 semantic trace。
 
 ### 5.5 Clock、power、report 与 SDF 后处理契约
 
 首版 incremental contract 只接受 data-net structural edits。clock net/clock constraint、library、corner 或 clock topology 变化必须按 policy error/full-with-record。data-only session 可复用 baseline clock state，但要用 clock/constraint/corner fingerprint 守卫；fingerprint 变化立即 invalidate，不能使用陈旧 clock state。
 
-timing publish 不等于完整 ECC STA artifact 发布。调用现有查询/artifact surface 时，先按需回传并物化当前 generation 所需结果，再执行必要的 TimingAnalyzer、PowerPropagator/PowerAnalyzer、timing/power reporters 和 SDF writer；不得再次 CPU full propagation 掩盖目标 backend 的结果。允许只在最终 batch 生成 artifact，但不能复用或发布上一 batch 的 power/report/SDF。缺少某个必需 artifact 能力时应失败或明确未生成。
+timing publish 不等于完整 ECC STA artifact 发布。阶段 14 起，四模式默认优化循环只读取候选所需的 slack、slew、负载和 RC 等数据，不自动准备每轮 QOR、WNS/TNS 汇总、完整路径分组或报告；AT/RAT、slack 和时序检查等算法必需计算仍执行；native CPU/full 也须将必要传播与报告后处理分开，不能把 required propagation 随报告推迟。循环结束后生成一次当前 generation 的完整报告及所需 power、SDF、DEF/netlist，无编辑退出也生成最终基线产物，不新增报告策略开关。
+
+显式中间查询按需返回所请求的当前 generation 结果；仅在消费者需要时构造 native 视图、物化目标 backend 的结果并执行必要的 `analyzePropagatedTiming()`、PowerPropagator/PowerAnalyzer、reporters 和 SDF writer，不得重新 CPU full 传播。复用同 generation 缓存，新提交立即失效。查询和报告后处理不得改变权威 timing 状态或下一轮候选输入。产物完整生成、校验后发布 manifest；输出失败允许重试，不回滚已提交设计，不发布部分或过期产物。缺少必需能力时应失败或明确未生成。
 
 后处理规则：
 
@@ -400,7 +409,7 @@ timing publish 不等于完整 ECC STA artifact 发布。调用现有查询/arti
 - power/timing report/SDF 至少有一个 ownership-local integration golden case；
 - `postprocess_ms` 单列，不计入 `update_core_ms`；
 - 消费者实际请求的查询/报告成本计入 `consumer_step_ms`；`artifact_step_ms` 延伸至全部所需 artifacts 原子发布，用于完整 flow 比较；
-- benchmark 可以跳过非必需 report I/O，但 production safety checks 和 generation validation 不能关闭。
+- benchmark 可以跳过未纳入消费需求的 report I/O，但不得省略冻结需求中的末轮产物；production safety checks 和 generation validation 不能关闭。
 
 ## 6. CSR 转换与增量数据结构
 
@@ -427,9 +436,9 @@ validate_round_trip(Database, CsrSnapshot)
 - start/end point、clock/data arc、loop-disabled 等现有语义；
 - version、logical size、capacity 和 sentinel 定义。
 
-export 只能读 Database；scatter 只能修改声明的 timing 结果字段。`Database → CSR → decode` 必须保留 parallel arcs，不能只用 `(src,dst)` 当 edge identity。
+export 只能读 Database；scatter 只能修改声明的 timing 结果字段。阶段 14 按需构造 native 拓扑视图与 scatter 分开，前者不得暗中传播，后者不得承担结构编辑。`Database → CSR → decode` 必须保留 parallel arcs，不能只用 `(src,dst)` 当 edge identity。
 
-阶段 2 允许每轮完整转换以先建立正确性原型，但从 Dual-CSR 阶段开始，session 只能在初始化或明确 full rebuild 时完整 export。正常增量轮次只更新变化并发布权威 timing 结果，CPU 消费时才按需 scatter；不得每批完整转换或无消费者地构造全部 native 结果。
+阶段 2 允许每轮完整转换以先建立正确性原型，但从 Dual-CSR 阶段开始，session 只能在初始化或明确 full rebuild 时完整 export。阶段 14 起，CSR 模式的正常编辑不再经 native export，CUDA/full 从当前 CSR/语义状态完整重建计算 CSR。正常增量轮次只更新变化并发布权威 timing 结果；候选选择直接消费所需 CSR 结果，只有需要 native 视图的消费者才按需构造并 scatter，不得无消费者地构造全部 native 结果。
 
 ### 6.2 Dual-CSR
 
@@ -488,7 +497,7 @@ PreparedBatch {
 }
 ~~~
 
-`DesignEditPlan` 由 experimental coordinator 拥有，iZH 提供物理 mutation/undo primitive；`TimingGraphDelta` 和 `PreparedBatch` 由 iSTA coordinator 拥有。阶段 3 必须交付 native graph mutator/translator，不能只交 JSON trace。
+`DesignEditPlan` 由 experimental coordinator 拥有，iZH 提供物理 mutation/undo primitive；`TimingGraphDelta` 和 `PreparedBatch` 由 iSTA coordinator 拥有。阶段 3 必须交付 native graph mutator/translator，不能只交 JSON trace。此为早期阶段要求；阶段 14 的 CSR 模式从权威 CSR/语义索引直接生成编辑，不再以 native mutator/translator 为前置步骤，native CPU/full 保留 native 编辑路径。
 
 跨模式 fixed trace 保存 semantic key，而不是 dense ID：instance/pin/net 名、arc kind/library identity、parallel ordinal，以及新对象 creation token。每个 fresh session 将 semantic key 解析为本 session 的 dense `NodeId/ArcId`；baseline fingerprint 不匹配时拒绝 replay。dense ID 只承诺在单 session 内稳定。
 
@@ -529,6 +538,8 @@ Gain = Rupstream,p * (Cload,p - Cbuf)
 
 - **Fixed trace**：由 CPU full/reference 生成 edit trace，四模式从相同 baseline 重放。用于公平 correctness 和性能比较。
 - **Closed loop greedy**：每轮由本模式 timing 重新选择 critical nets。用于最终优化效果；浮点 tie 可能使后续 edit 分叉，结果必须与 fixed-trace 分开报告。
+
+阶段 14 起，候选选择直接读取本模式当前结果所需的数值，不以完整报告作为前置条件；保留原候选评分和 stable ID tie-break。每轮仅记录 generation、实际模式、fallback、插入数量、预测 gain 和停止原因等实际运行信息；仅为日志生成的每轮 QOR/WNS/TNS 及专用数据处理删除，未计算指标不得填成功值。独立逐批 oracle/完整比较仅在 ON 开发验收运行。
 
 微型 mutation tests 不依赖 greedy；greedy 集成也不能替代逐节点 STA oracle。
 
@@ -662,7 +673,9 @@ batch_sample:
   allocation_count, capacity_fallback
 run_aggregate:
   process_setup_ms, cuda_context_ms, baseline_build_ms
-  all_batches_ms, close_ms, cold_end_to_end_ms
+  all_batches_ms, optimization_end_to_end_ms
+  final_materialization_ms, final_postprocess_ms, final_output_ms
+  close_ms, cold_end_to_end_ms
 correctness:
   comparison  # not_run in ordinary OFF performance samples
   pass, mismatch_count, max_abs_error, max_rel_error  # null when not_run
@@ -676,7 +689,7 @@ summary:
   speedup_ci95_lower, speedup_ci95_upper
 ~~~
 
-普通性能输出 `debug_checks_enabled=false`；正确性比较和详细诊断均为 `not_run`，相关值为空，不能填固定成功值。访问或结构字段只因诊断才可取得时，不得为填 schema 在 OFF 增加扫描；必要输入身份复用已验证绑定，不为每批遥测重新计算全图摘要。复用现有输出入口，字段迁移显式升级 schema 并同步仓内消费者，不新增通用统计框架。
+普通性能输出 `debug_checks_enabled=false`；正确性比较和详细诊断均为 `not_run`，相关值为空，不能填固定成功值。未生成的每轮报告指标应删除，协议仍需保留时标为 `not_run` 且值为空，不填零或复用上一 generation 的值。访问或结构字段只因诊断才可取得时，不得为填 schema 在 OFF 增加扫描；必要输入身份复用已验证绑定，不为每批遥测重新计算全图摘要。复用现有输出入口，字段迁移显式升级 schema 并同步仓内消费者，不新增通用统计框架。
 
 ### 9.2 测量规则
 
@@ -706,34 +719,43 @@ session_step_ms:
   包含 normalize、adapter、提交必需传输和生产安全检查。
 
 query_materialization_ms:
-  该批消费者请求所需的 D2H、解包和 native scatter/物化耗时；
+  该批消费者请求所需的 D2H、解包及必要 native 视图构造/scatter 耗时；
+  CSR 候选读取不要求构造 native 视图；
   同 generation 命中缓存也如实记录，不漏计首次物化。
 
 consumer_step_ms:
   该批编辑开始到消费者取得该轮声明需要的全部结果；
   包含编辑准备、session_step_ms、必要查询物化及消费者请求的分析/后处理；
-  是阶段 12、14 的主要加速验收口径。
+  保留阶段 12 冻结的每批完整消费口径；阶段 14–15 默认批次只计必要候选数据，
+  显式完整查询才计对应报告处理，不重复计入末轮报告。
 
 artifact_step_ms:
   同一批请求开始到全部所需当前 generation artifacts 原子发布；
   包含提交、必要物化及 clock/power/analyzer/report/SDF 后处理。
 
+optimization_end_to_end_ms:
+  run-level aggregate；从首次候选选择/批次编辑开始，到最终 generation 所需产物发布；
+  包含全部轮次的候选选择、合法化、RC、提交、必要查询，以及最终 native 视图构造、
+  回传/物化、报告后处理和输出；无编辑时仍计最终基线产物。
+  是阶段 14 成本比较与阶段 15 生产性能验收的主口径；
+  final_materialization_ms、final_postprocess_ms、final_output_ms 是其中分解，不重复相加。
+
 cold_end_to_end_ms:
   run-level aggregate；包含 process/session 初始化、CUDA context、
-  baseline CSR、全部 batches 和 close，不写入单个 batch sample。
+  baseline CSR、整段优化与最终产物及 close，不写入单个 batch sample。
 ~~~
 
-speedup 必须明确同名字段（`update_core_ms`、`session_step_ms`、`consumer_step_ms`、`artifact_step_ms` 或 run-level `cold_end_to_end_ms`），使用相同输入/trace、结果需求、dtype、构建优化设置和固定硬件配置；各模式采用合理生产线程配置并记录实际线程数。禁止用 kernel 时间除以 CPU end-to-end，也不能把回传/物化推迟到计时后。greedy selection、必要查询和产物成本按真实消费口径计入，core 分解另列；oracle 不进入性能进程。
+speedup 必须明确同名字段（`update_core_ms`、`session_step_ms`、`consumer_step_ms`、`artifact_step_ms` 或 run-level `optimization_end_to_end_ms` / `cold_end_to_end_ms`），使用相同输入/trace、结果需求、dtype、构建优化设置和固定硬件配置；各模式采用合理生产线程配置并记录实际线程数。禁止用 kernel 时间除以 CPU end-to-end，也不能把回传/物化推迟到计时后。greedy selection、必要查询和产物成本按真实消费口径计入，core 分解另列；oracle 不进入性能进程。阶段 14–15 四模式冻结相同的“每轮必要候选数据＋末轮完整报告”需求；历史阶段 12 的每批完整消费结果单独保留，不与新口径直接混比。
 
 提供三个 profile：
 
 1. **paper-protocol profile**：只复现 top-1000×1、top-100×10、每项 3 次 mean 和 buffer-count sweep 的协议形状，不声称复现论文原数字；
 2. **exact-paper profile**：只有取得原始 dataset/library/trace 并记录 hash 后才能启用；
-3. **engineering profile**：默认 warmup 5、repeat 30；主报 median/p95/MAD、配对加速比及 95% 置信区间，并保留 cold/warm。验收配置及配对统计方法在优化前冻结；更短 smoke 不替代工程性能门。
+3. **engineering profile**：默认 warmup 5、repeat 30；主报 median/p95/MAD、配对加速比及 95% 置信区间，并保留 cold/warm。阶段 14–15 每次完整优化循环（含末轮产物）为一个统计样本，不将同一循环的批次当作独立样本。验收配置及配对统计方法在优化前冻结；更短 smoke 不替代工程性能门。
 
 每份输出写 `comparability_status = exact | protocol_only | non_comparable`。
 
-buffer-count sweep 至少覆盖 1、10、100、1K、10K、100K；同时报告真实 changed-node/edge 和 affected fraction。优化前冻结代表性规模、trace、消费者结果需求和必过用例，不得看结果后挑样本。阶段 12、14 的严格性能结论要求必过用例分别实现 CUDA/full 相对 native CPU/full、CUDA/incremental 相对优化后的 CUDA/full 的 `consumer_step_ms` 配对加速比 95% 置信区间下界大于 1。记录所有负结果、交叉点和资源受限点，不要求每个小设计或所有规模更快；未满足指定性能门不得标记高性能完成。回归比较只在相同硬件指纹和稳定 runner 上进行；普通 PR 不以绝对时延失败。
+buffer-count sweep 至少覆盖 1、10、100、1K、10K、100K；同时报告真实 changed-node/edge 和 affected fraction。优化前冻结代表性规模、trace、消费者结果需求和必过用例，不得看结果后挑样本。阶段 12、15 的严格性能结论要求必过用例分别实现 CUDA/full 相对 native CPU/full、CUDA/incremental 相对优化后的 CUDA/full 的配对加速比 95% 置信区间下界大于 1；阶段 12 使用其冻结的 `consumer_step_ms`，阶段 15 使用包含最终产物的 `optimization_end_to_end_ms`。阶段 14 验收路径精简、正确性和实际成本变化，不替代正式加速门。记录所有负结果、交叉点和资源受限点，不要求每个小设计或所有规模更快；未满足指定性能门不得标记高性能完成。回归比较只在相同硬件指纹和稳定 runner 上进行；普通 PR 不以绝对时延失败。
 
 ### 9.3 论文数值只作背景
 
@@ -1052,7 +1074,7 @@ PreparedBatch
 
 - 逐项分析六类语义：顺序实例（`sequential_instance`）、顺序发射（`sequential_launch`）、时序检查（`timing_check`）、CRPR（`crpr`）、时钟树扇出（`clock_tree_fanout`）、条件时序弧（`conditional_timing_arc`）；
 - 以 native CPU STA 为语义依据，追踪共享 CSR 表达、CPU reference/incremental 和 CUDA 路径中的导出、计算、结果发布及必要失效处理，不能仅移除 CUDA 入口的拒绝；
-- 明确 baseline clock state 与 data-only edits 的依赖、更新和失效边界；本阶段不扩展为完整 native CPU STA 能力对齐，physical/greedy 集成与跨层事务属于阶段 13；阶段 11–12 先完成默认路径、存储/事务和并行计算；正式性能评估和结论属于阶段 14。
+- 明确 baseline clock state 与 data-only edits 的依赖、更新和失效边界；本阶段不扩展为完整 native CPU STA 能力对齐，physical/greedy 集成与跨层事务属于阶段 13；阶段 11–12 先完成默认路径、存储/事务和并行计算；正式性能评估和结论属于阶段 15。
 
 **交付**
 
@@ -1170,20 +1192,60 @@ PreparedBatch
 - 发布前后故障不留下物理/timing/CSR 分叉，或 poison 后从 committed checkpoint 重建并继续提交；
 - 查询、输出后继续提交及恢复后输出正确；final-batch artifacts 来自当前 generation，产物失败不发布旧结果；
 - 默认流程、既有 artifacts、OFF/ON 等价、CPU/GPU 回归和 CUDA 内存检查通过；必要失败处理始终保留；
-- 独立 Release OFF/ON 隔离 binding，核对真实构建状态；运行剖析确认 Stage 11–12 的默认路径和并行实现没有回退；完整生产性能结论由 Stage 14 验收。
+- 独立 Release OFF/ON 隔离 binding，核对真实构建状态；运行剖析确认 Stage 11–12 的默认路径和并行实现没有回退；完整生产性能结论由 Stage 15 验收。
 
 **阶段报告重点**
 
 记录生产入口、语义支持矩阵、物理事务、fixed trace/greedy 实际结果、按需查询与产物、CI 和独立审阅；列明未通过或未执行项，不提前宣称生产性能验收完成。
 
-### 阶段 14：正式性能评估、论文可比性与结论
+### 阶段 14：CSR 原生编辑与末轮报告优化
 
-状态：尚未实施；由原 Stage 12 顺延，Stage 13 正确性稳定后开展。本轮只维护计划，不启动实验。
+状态：已完成功能、路径剖析及用户调整后的 1/3 参考成本验收（2026-10-09），未 commit、未 push；保留 Stage 13 未关闭事项及 Stage 12 严格性能门未执行的状态，不宣称 Stage 15 正式性能验收通过。见[详细计划](incregpusta/stage14-detailed-plan.md)和[实施记录](incregpusta/stage14-progress-report.md)。
+
+**先分析**
+
+- 追踪 buffer insertion、连接、RC/负载更新和候选选择对 native Database 的依赖，区分必要语义数据与仅服务旧转换流程的数据；
+- 按模式明确权威状态、事务参与层、查询及 native 视图生命周期；冻结现有行为、代表性用例、消费需求和调用/分配/传输剖析基线；
+- 区分下一轮候选所需数值与完整报告、路径分组、日志汇总，保留所有算法必需计算。
+
+**交付**
+
+- CPU/incremental、CUDA/full、CUDA/incremental 以 CSR 及必要语义索引为会话内权威 timing 状态，直接完成 buffer insertion，删除正常批次中“先编辑 native STA 图，再读取 native 对象生成 CSR 更新”的链路；
+- native CPU/full 继续在 native Database 上编辑并执行完整 STA；复用既有 host CSR 编辑和设备 patch，不要求把合法化、RC 结构准备或所有编辑搬到 GPU；
+- IDB、位置、RC 和所选 backend 功能状态共同提交、撤销与恢复；CSR 模式不再每批维护 native STA 图，最终输出或显式查询需要时才构造当前 generation 的 native 视图；
+- native 视图使用目标 backend 的权威结果，不以 CPU full 重算补齐或替换；新提交立即失效旧视图，不保留双份权威图；
+- 保留 stable ID、候选 tie-break、局部旧值检查和现有时序语义，不新增统一候选排序框架；CUDA/full 从当前权威设计状态完整重建计算 CSR、必要上传、完整分层与传播，增量模式只维护变化；
+- 删除失去消费者的 native candidate、重复映射及转换包装，不新增通用适配框架；
+- 四模式默认循环只消费下一轮候选所需 slack、slew、负载和 RC；CSR 模式直接消费 CSR 结果，不为选候选完整物化 native timing；
+- 删除候选选择中的完整报告准备、每轮仅为日志计算的 QOR/WNS/TNS、路径分组及序列化，连同专用复制和遍历；AT/RAT、slack、时序检查等必要计算保留；
+- 保留 generation、实际模式、fallback、插入数量、预测 gain 和停止原因等运行记录，未计算报告指标不填成功值；
+- 默认结束时生成一次当前 generation 的完整报告及所需 power、SDF、DEF/netlist，无编辑退出也生成最终基线产物；显式中间查询仍按需返回当前结果，同 generation 复用缓存，编辑后失效；
+- 报告使用 `analyzePropagatedTiming()`，不重新传播；native CPU/full 的必要 required propagation 仍在每轮 timing 中完成；最终输出失败允许重试，不回滚已提交设计，不发布部分或过期产物；
+- ON 保留有独立价值的逐批 oracle 和完整比较，OFF 不自动执行，不新增报告策略开关。
+
+实施顺序：冻结行为与剖析基线 → CSR 直接编辑与事务迁移 → 候选最小结果消费 → 末轮报告 → 独立审查及回归。保持默认 CPU/full、诊断 OFF、既有 STA 支持范围和增量图/分层＋全图传播，不扩展其他算法。
+
+**正确性门**
+
+- 独立 Release OFF/ON，复用 xtea、usb、zipdiv 四模式 Q/D 多批次物理 trace；ON 逐批与独立 fresh native CPU/full 比较拓扑、RC、timing、winner、CRPR、时序检查，并核对最终产物；
+- 覆盖连续提交不查询、中途显式查询后继续编辑、重复查询、容量增长、真实失败回滚、恢复后继续提交、无候选退出及最终报告失败重试；
+- 验证取消报告不改变 greedy 所需数值、候选评分和稳定身份决胜规则；fixed trace 与 closed-loop 分别验收；
+- 运行相关 native/parent、默认无 CUDA、适用 sanitizer 和 OFF/ON 跨构建回归，保留实际失败和未执行项；
+- 实际调用、分配和传输剖析证明正常 CSR 批次不再经过 native 编辑再转换，默认每轮不生成完整报告，也不为候选选择回传完整路径结果；不得用源码字符串或固定计数代替证据；
+- 按第 9.2 节冻结相同消费需求；本轮按用户 2026-10-09 调整采用 1 次预热、3 次采样的参考成本测量。已完成数据按原始序号复用，保留实际额外预热历史，不依据耗时挑选；比较整段循环至最终产物完成的耗时，最终视图构造和报告不能移出计时，保留负结果及资源限制。Stage 15 正式性能协议不变。
+
+**阶段报告重点**
+
+记录必要 CSR 更新、RC 准备、候选读取、最终 native 视图构造及报告成本，以及事务和查询迁移的实际证据。Stage 14 验收路径精简、正确性和实际成本变化；正式加速门和论文结论由 Stage 15 验收。
+
+### 阶段 15：正式性能评估、论文可比性与结论
+
+状态：尚未实施；由原 Stage 14 顺延（最初为 Stage 12），承接 Stage 14 优化后的生产流程，Stage 13–14 正确性稳定后开展。本轮只维护计划，不启动实验。
 
 **先分析**
 
 - benchmark 输入许可、可分发性、runner 稳定性及与论文输入/参数/硬件的差异；
-- 四模式同一 trace、结果需求下的加载、恢复、提交、按需物化、消费者及 artifact 计时边界；
+- 四模式同一 trace 和“每轮必要候选数据＋末轮完整报告”需求下的加载、恢复、提交、按需物化与产物计时边界，包含最终 native 视图准备；
 - 扩大真实设计、规模、批次和实际影响比例，预先冻结生产必过性能用例；不把 full propagation 描述为 affected-cone。
 
 **交付**
@@ -1192,7 +1254,7 @@ PreparedBatch
 - engineering、paper-protocol、exact-paper profiles 和 comparability status；缺少论文原始输入时 exact-paper 为未执行；
 - 四模式重放相同冻结 trace；1、10、100、1K、10K、100K buffers 及不同实际影响比例，合成/真实、fixed trace/closed-loop 分开报告；
 - 工程验收统一默认预热 5 次、采样 30 次，保留全部原始样本；固定构建、线程、设备、输入和结果需求，保留加载、恢复及清理；
-- cold/warm、core、提交、查询物化、消费者、artifact 和 cold end-to-end 同边界结果，复验生产消费者收益。
+- cold/warm、core、提交、查询物化、消费者、artifact、整段优化至最终产物和 cold end-to-end 同边界结果，复验生产消费者收益；每批只计实际消费，末轮报告成本不重复计入。
 
 **正确性门**
 
@@ -1213,10 +1275,11 @@ PreparedBatch
    当前父仓库默认 CI 不运行 CTest，需在 ecc-tools CI 或 ECC `build-all` job 显式执行 `ista_unit|ista_property`。
 3. **Nightly/manual CPU integration**
    `integration,pdk,slow`、真实 design、greedy loop、更多 seeds；上传 correctness JSON 和失败 traces。
+   Stage 14 纳入 CSR 直接编辑、连续不查询、中间查询后继续编辑、末轮产物及输出失败重试；完整逐批比较在 ON 开发验收运行。
 4. **Self-hosted GPU correctness gate**
    synthetic + 至少一个真实 design，运行 GPU full/incremental。无 GPU 只能明确 skip/not-run，不能算通过。
-5. **Stage 12 / Stage 14 manual performance gate**
-   Stage 12 本轮记录核心消费者参考收益，严格性能门单列未验收；Stage 14 复验生产收益与论文可比性；Release/OFF、固定 runner、上传 raw JSON/CSV 和置信区间，按预先冻结用例判断。普通 PR 不采用跨硬件绝对时延门禁。
+5. **Stage 12 / Stage 15 manual performance gate**
+   Stage 12 本轮记录核心消费者参考收益，严格性能门单列未验收；Stage 14 记录路径精简与实际成本变化，Stage 15 复验包含最终产物的生产收益与论文可比性；Release/OFF、固定 runner、上传 raw JSON/CSV 和置信区间，按预先冻结用例判断。普通 PR 不采用跨硬件绝对时延门禁。
 
 示意命令，执行前须按实际 target 名更新：
 
@@ -1246,7 +1309,7 @@ uv run pytest test/integration/test_incremental_sta_flow.py \
 - 默认 cpu/full 的 API、flow 和 artifact 保持兼容；
 - CPU/GPU 与 full/incremental 均可显式选择；
 - 请求模式、实际模式和 fallback 永远可见；
-- native object graph 仍是 canonical，不发生全项目数据结构重构；
+- native CPU/full 以 native Database 为权威 timing 图，CSR 模式以 CSR 及必要语义索引为权威状态，native 视图按需构造；IDB 保持权威物理状态，不发生全项目数据结构重构；
 - CSR adapter round-trip、Dual-CSR、mixed levelization 不变量全绿；
 - 每个 semantic edit batch 后，目标模式与 fresh-session CPU/full 逐点 timing 等价；
 - greedy harness 真实插入 buffer，并分别支持 fixed-trace 与 closed-loop；
@@ -1255,6 +1318,7 @@ uv run pytest test/integration/test_incremental_sta_flow.py \
 - GPU correctness 在真实设备上通过，传播/full levelization/CSR patch 的实际并行执行由运行剖析验证；
 - Stage 11 的默认路径无诊断专用工作和每批完整事务复制，按需查询返回当前 generation，稳态存储复用和扩容行为取得实际证据；
 - Stage 12 本轮完成预先冻结用例的参考测量并明确共享 GPU 条件；严格核心/生产性能结论仍要求 CUDA/full 对 native CPU/full、CUDA/incremental 对优化后 CUDA/full 均有显著正收益。保留原始样本、置信区间、负结果与 break-even，正确性通过或参考测量完成不替代严格性能门；
+- Stage 14 的直接 CSR 编辑、最小候选结果消费与末轮报告通过功能和剖析验收，显式中间查询、回滚和恢复正确；Stage 15 的正式性能口径包含最终物化与产物成本，不将延迟工作移出计时；
 - 每阶段均有独立 subagent 审查记录、修正循环、测试记录和文字变更说明；
 - 父仓库与 ecc-tools 的 `IncreGPUSTA` 分支/commit/gitlink 可达且清晰；工作树无未解释的本阶段改动，并保留用户已有修改。
 
@@ -1271,7 +1335,7 @@ uv run pytest test/integration/test_incremental_sta_flow.py \
 - 多 corner 共享 device topology；
 - 与外部 Sizer/OpenSTA 内部迭代深度耦合。
 
-只有阶段 9–13 正确性稳定且阶段 12、14 性能门通过、数据充分后，才可单独提案。即使将来增加 `auto`，手动 full/incremental 选择仍必须保留。
+只有阶段 9–14 正确性稳定且阶段 12、15 性能门通过、数据充分后，才可单独提案。即使将来增加 `auto`，手动 full/incremental 选择仍必须保留。
 
 ## 14. 本计划自身的审阅记录
 
@@ -1281,70 +1345,6 @@ uv run pytest test/integration/test_incremental_sta_flow.py \
 - ECC 调用链 subagent：核验 general iSTA、iCTS FastSTA、iZH FanoutFixer、TIMING_OPT、iRT 和 submodule branch；
 - 测试/性能 subagent：核验 pytest/CTest/CI、oracle、schema、GPU runner 门禁。
 
-### 独立计划审阅
-
-- Round 1：两名未参与撰写的 subagent 均给出 `request changes`，无普通代码修改参与。主要意见是增加 CSR CPU reference、隔离 fresh sessions、建立三层 edit/事务 contract、精确定义四模式与计时边界、拆分 greedy/mixed-levelization、后移 affected-cone、修正 level eligibility，并增加 submodule commit 可达性门禁；以上意见已纳入 `v0.2`。
-- Round 2：新的独立 subagent 给出 `request changes`，确认 Round 1 核心修改已闭合，但要求补齐 clock/power/report/SDF 后处理、real-design 跨层物理事务、阶段 5/8 的即时 timing gate，以及生产安全校验与 differential oracle 的计时区分；以上意见已纳入 `v0.3`。
-- Round 3：第三名新的独立 subagent 完整终审，结论 `APPROVE`，无 blocker、无 major；确认用户要求、论文边界、ECC ownership、阶段闭环、后处理、跨层事务和计时口径均已闭合。
-
-### 阶段 1 详细设计审查
-
-- [阶段 1 详细计划](incregpusta/stage1-detailed-plan.md) 已冻结为 `v1.0`；经过六轮独立审查与修正，最终三名审查者均给出 `APPROVE`，无 remaining finding。
-- 阶段 1 已在本地完成：parent 与 native 独立代码审查均最终 `APPROVE`，正确性回归和阶段报告已闭环；parent 与 ecc-tools 本地提交分别为 `ee2563b2d27165d9324d82103cdf28bddb414956` 与 `a7355b216b801f72a99d92e77765f49c744148b3`，均未推送。详见[阶段 1 报告](incregpusta/stage1-report.md)。
-
-### 阶段 2 完成状态
-
-- [阶段 2 详细计划](incregpusta/stage2-detailed-plan.md)、Steps 2–9冻结计划和[阶段 2 报告](incregpusta/stage2-report.md)已记录as-built边界、审查与回归结果。
-- 简化功能验收确认18/18 native/reference/scatter/rerun pair一致，当前字节完整CSR回归79/79、parent非PDK回归1667 passed；指标为`non_comparable`，不宣称speedup。
-- 原v0.31严格POST→report-transition→FINAL在三次正式候选后仍未封口；按用户预先授权停止扩张哈希审核，以功能正确性收口。parent/child本地提交分别为`49f1bc99ed8a4126a6f4da2bfd3236cdb04df4e9`与`5609a3c932e7bcb6cfb2a2ee765f472e0615e395`，均未推送。
-
-### 阶段 3 完成状态
-
-- [阶段 3 详细计划](incregpusta/stage3-detailed-plan.md)与[阶段 3 报告](incregpusta/stage3-report.md)已记录as-built contract、native candidate、transaction/full-exact receipt、fresh oracle/recovery和边界。
-- 删除2项源码清单/字符串扫描门禁后，Stage 3 `^ista_timing_edit_` 功能集14/14通过；Stage 2最小真实兼容路径33/33通过，覆盖GraphBuilder、projection、scatter、real differential与full baseline。
-- 完成结论以raw Database/resolver/trace/host CSR/native timing/CSR full逐字段一致和fresh process重放为依据；不以trace hash、源码SHA或CTest数量常量替代功能证据。
-- 阶段 3仍只执行CPU/full并明确拒绝未实现模式，不宣称incremental或GPU性能；不修改EngineDB/IDB物理状态。
-
-### 阶段 4 完成状态
-
-- [阶段 4 详细计划](incregpusta/stage4-detailed-plan.md)已冻结为v1.0，[阶段 4 报告](incregpusta/stage4-report.md)记录selector、fixed trace、one-shot production replay、source isolation和as-built边界。
-- 删除2项精确source/object/Ninja inventory后，Stage 4 `^ista_buffer_` 功能集18/18、Stage 3功能回归14/14通过；历史parent冻结STA 227/227与non-PDK 1665项、Stage 2完整兼容集中74项功能/真实流程均通过。
-- Stage 2原5项共享Ninja对象记录/全局CTest数量冻结属于静态实现清单，已在Stage 0–6过度防御清理中删除；real differential fresh-process、projection、scatter、reference input和binding功能路径继续通过。
-- 完成结论来自native CPU/full↔CSR full timing、raw Database/resolver/host CSR、三个fresh child、五件source artifact和primary IDB投影逐字段一致；integrity hash不替代这些证据。
-- 当前仍只执行CPU/full，real trace为`non_comparable/engineering_rc_no_physical`；不宣称Dual-CSR、GPU、物理提交或speedup。
-
-### 阶段 5 完成状态
-
-- [阶段 5 详细计划](incregpusta/stage5-detailed-plan.md)已冻结为v1.0，[阶段 5 报告](incregpusta/stage5-report.md)记录targeted Dual-CSR、direct-view full timing、production differential、rollback/source isolation、telemetry与as-built边界。
-- generation-0 typed anchor与后续narrow verified descriptor隔离成立；BaseOut/BaseIn/AuxOut直接视图、append-only logical identity、parallel group重编号和九字段transaction publish均通过语义验证。
-- GCC 14 strict Release功能矩阵120/120唯一测试、frozen synthetic/real全prefix differential、1 warm-up + 6 raw timing smoke、parent冻结STA 227/227及non-PDK 1665项均通过；ASan/UBSan核心与异常边界各7/7无诊断。
-- #119 reference异常越过graph API的真实回归已在shared projector精确交界局部修复并完整回归；旧inventory和Ninja生成器绑定已在Stage 0–6过度防御清理中删除，`py_idb`系统Python header缺失仍作为环境限制单列，不覆盖功能结论。
-- 完成结论来自topology、payload、level、timing、generation、rollback、fresh replay和source unchanged逐字段闭合；不宣称mixed levelization、affected-cone、GPU、物理提交、speedup或break-even。ecc-tools本地提交为`11ae6d767a4e7dc25b3504326fd7b383e1a711e5`，未推送。
-
-### 阶段 6 完成状态
-
-- [阶段 6 详细计划](incregpusta/stage6-detailed-plan.md)已更新为v1.0 as-built，[阶段 6 报告](incregpusta/stage6-report.md)记录pure mixed builder/Kahn/reconstruction、caller-supplied backend、typed factory/execution trace、production/fresh controller、recovery与active-payload边界。
-- `cpu/incremental`已真实执行targeted Dual-CSR + mixed incremental levelization + full CPU propagation；full入口delta=1、mixed/external delta=0、correctness fallback=0，synthetic两批与real一批均与独立fresh CPU/full功能等价。
-- GCC 14 strict Release统一Stage 6功能标签14/14、Stage 5功能标签5/5和13个Stage 5/6关键目标构建通过；历史ASan/UBSan各8/8、parent冻结STA 227/227与non-PDK 1665项通过。硬编码inventory已删除，不再把目标声明的镜像清单作为验收门。
-- active-payload真实覆盖parallel same-base peer omission的`kArcMultiplicityMismatch`、aggregate不变、inactive key collision/poison隔离与独立public full等价；mode recovery完成full→mixed→rebind/replay→继续下一批。
-- 最终独立全diff审查`APPROVE`，无remaining blocker/major/minor。parent/child本地提交分别为`48c09f84f4abfa60c95c0e4b7809c96ee31f97e3`与`b8bfc3a79930b0be146ac26ca10dc0e99115f1fc`，均未推送；不宣称affected-cone、CUDA、物理提交、speedup或break-even。
-
-### 阶段 0–6 过度防御清理
-
-- ecc-tools清理提交`8eed90e86c934052f2eb10a8c114f7e41f6db7df`共修改105个文件，净变化为690行新增、11569行删除；删除目标SOURCES/LINK_LIBRARIES/COMPILE_OPTIONS自比较、CTest数量、对象文件、Ninja生成器、source SHA、AST/源码字符串及link-closure等静态实现清单，同时保留strict compile flags和功能、属性、事务、恢复及fresh-process测试。
-- Stage 0删除topology/config/full-snapshot诊断哈希和manifest固定输入哈希，完整snapshot与artifact逐字段/容差比较成为权威；projection删除没有边界消费者的输入复合哈希；reference-input删除父端传入、子端原样回显的blind hash chain；CSR session改为把已验证legacy projection/FIFO原始字节与每个session/repeat直接对照，并增加“稳定一致但错误”负例。
-- Stage 3/4删除重复raw/snapshot/replay receipt SHA、`IntegrityReceipt`、`frozen_artifact_digest`及其encoder/schema/validator链；Stage 5/6删除无消费者的hash-as-acceptance布尔字段和静态ownership/link-closure门禁。
-- 保留确有语义用途的Stage 2 `CsrSnapshotIdentity`、Stage 3 `ComponentFingerprints`、real-differential子进程对实际输入文件的独立重算绑定、source artifact内容校验及不可语义解码binary artifact SHA；这些摘要只防止跨generation/session或跨进程误绑定，不替代功能比较。
-- 最终Nix/GCC 14 Release/Ninja重新configure通过；Stage 0–4 focused功能集55/55及projection/real-differential边界集5/5通过，Stage 5/6联合功能标签25/25通过（Stage 5 4/4、Stage 6 14/14）。首次联合标签中18项因目标尚未构建而`Not Run`，明确构建18/18后原样复跑全绿，没有把缺二进制计作功能通过。
-- 12个现存变更JSON全部解析通过，全部变更Python通过实质lint，`git diff --check`通过且无`__pycache__`残留；功能终审与哈希边界终审均`APPROVE`，blocker/major/minor均为0。
-
-阶段 0–6 已完成，当前可进入阶段 7；详见[阶段 0–6 过度防御清理报告](incregpusta/stage0-stage6-defense-cleanup-report.md)。剩余阶段不得跳过，后续仍须执行第2.2节闭环，继续以功能正确性为主且不得扩张无上限哈希攻防。
-
-### 阶段 0–6 第二轮复杂度清理（2026-09-05）
-
-本轮按用户要求只做本地提交：ecc-tools `c40b57b5086acddb118e0107928c82ea21084eb3`；parent 为本计划所在提交并同步 gitlink。均未 push，属于未发布本地工作。
-
-第二轮清理直接构建 signoff 最终运行项，合并 Stage 6 确定性遥测字段及恒等式校验，统一 mixed pipeline 自由函数入口，并删除无调用的校验 helper、让测试复用实际 reference validator。功能边界、JSON wire、事务与恢复语义不变。具体实现、回归状态和本地工作状态以[第二轮清理报告](incregpusta/stage0-stage6-second-cleanup-report.md)为准；该补充不重新宣称 Stage 7 或 GPU 验证完成。
 
 ## 15. Material Passport
 

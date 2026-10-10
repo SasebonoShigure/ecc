@@ -6,7 +6,11 @@ import os
 import sys
 import traceback
 from dataclasses import replace
+from fnmatch import fnmatchcase
 from pathlib import Path
+from time import perf_counter
+
+from physical_sta_performance import run_sample
 
 from chipcompiler.data.workspace import load_workspace
 from chipcompiler.tools.ecc.module import ECCToolsModule
@@ -31,6 +35,7 @@ def input_identity(path):
 
 
 def main():
+    started = perf_counter()
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--workspace", type=Path, required=True, help="Existing post-CTS legalized workspace"
@@ -48,17 +53,40 @@ def main():
     parser.add_argument("--backend", choices=("cpu", "cuda"), required=True)
     parser.add_argument("--strategy", choices=("full", "incremental"), required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--threads", type=int, default=128)
+    parser.add_argument(
+        "--benchmark",
+        action="store_true",
+        help="OFF fixed trace: candidate reads per round, one final report/artifact publication",
+    )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--prepare-from", type=Path)
     group.add_argument("--physical-trace", type=Path)
+    group.add_argument(
+        "--closed-loop", action="store_true", help="Run the production physical greedy flow"
+    )
     group.add_argument(
         "--fresh",
         action="store_true",
         help="Independent native CPU/full of the supplied DEF/netlist",
     )
     args = parser.parse_args()
+    if args.threads <= 0:
+        parser.error("--threads must be positive")
     if args.fresh and ((args.mode, args.backend, args.strategy) != ("ON", "cpu", "full")):
         parser.error("--fresh requires ON cpu/full and explicit --def-file/--verilog-file")
+    if args.benchmark and (args.mode != "OFF" or args.physical_trace is None):
+        parser.error("--benchmark requires OFF and --physical-trace")
+    module = ECCToolsModule()
+    loaded = Path(module.ecc.__file__).resolve()
+    if args.benchmark and module.ecc.incregpusta_debug_checks_enabled:
+        raise RuntimeError("physical performance requires debug checks OFF")
+    if (
+        loaded.parent != args.binding_dir.resolve()
+        or module.ecc.incregpusta_debug_checks_enabled != (args.mode == "ON")
+    ):
+        raise RuntimeError("binding mode mismatch")
+    binding_identity = input_identity(loaded) if args.benchmark else None
     workspace_dir = args.workspace.resolve()
     workspace = load_workspace(workspace_dir)
     out = args.output
@@ -77,7 +105,7 @@ def main():
     checkpoint.update({f"liberty_{i}": str(p) for i, p in enumerate(workspace.pdk.libs)})
     if any(not Path(path).is_file() for path in checkpoint.values()):
         raise ValueError("physical checkpoint input is missing")
-    module = ECCToolsModule()
+    input_identities = {name: input_identity(path) for name, path in checkpoint.items()}
     module.init_config(str(workspace.config["flow"]), str(workspace.config["db"]), out, out)
     module.init_techlef(str(workspace.pdk.tech))
     module.init_lefs(workspace.pdk.lefs)
@@ -86,7 +114,6 @@ def main():
     module.ecc.lib_init(lib_paths=[str(x) for x in workspace.pdk.libs])
     module.ecc.sdc_init(sdc_path=str(sdc))
     module.ecc.spef_init(spef_path="")
-    loaded = Path(module.ecc.__file__).resolve()
     print(
         json.dumps(
             {
@@ -104,22 +131,52 @@ def main():
                 "binding": str(loaded),
                 "debug_checks": module.ecc.incregpusta_debug_checks_enabled,
                 "cuda_enabled": module.ecc.incregpusta_cuda_enabled,
-                "inputs": {name: input_identity(path) for name, path in checkpoint.items()},
+                "inputs": input_identities,
             }
         )
         + "\n"
     )
-    if (
-        loaded.parent != args.binding_dir.resolve()
-        or module.ecc.incregpusta_debug_checks_enabled != (args.mode == "ON")
-    ):
-        raise RuntimeError("binding mode mismatch")
     request = {
         "backend": args.backend,
         "update_strategy": args.strategy,
         "fallback_policy": "error",
     }
     print(json.dumps({"requested": request}), flush=True)
+    if args.closed_loop:
+        from chipcompiler.data import StepEnum
+        from chipcompiler.rtl2gds import get_flow_builders
+        from chipcompiler.tools.ecc.builder import build_step, build_step_space
+        from chipcompiler.tools.ecc.physical_runner import run_physical_timing_opt
+
+        workspace.flow.data["steps"] = [
+            {"name": step.value, "tool": tool}
+            for step, tool, _ in get_flow_builders()["incregpusta_experimental"]()
+        ]
+        workspace.parameters.data.update(
+            {
+                "STA backend": args.backend,
+                "STA update strategy": args.strategy,
+                "STA fallback policy": "error",
+            }
+        )
+        workspace.parameters.data["STA max paths"] = 20
+        workspace.pdk.sdc = sdc
+        step = build_step(
+            workspace,
+            StepEnum.TIMING_OPT.value,
+            def_file,
+            verilog,
+            step_directory=out / "timing_opt",
+        )
+        build_step_space(step)
+        try:
+            if not run_physical_timing_opt(workspace, step, module):
+                raise RuntimeError("physical production flow did not complete")
+        finally:
+            module.close()
+        return
+    loaded_at = perf_counter()
+    measurement = None
     session = module.ecc.create_incremental_sta_session(request)
     try:
         session.initialize(
@@ -129,10 +186,12 @@ def main():
             config="",
             config_dict={
                 "-temp_directory_path": str(out),
+                "-thread_number": str(args.threads),
                 "-output_timing_reports": "0",
                 "-output_timing_features": "0",
                 "-timing_path_limit": "20",
                 "-max_paths": "20",
+                "-nworst": "20" if args.benchmark else "1",
             },
         )
         baseline = session.run_physical_baseline(
@@ -143,11 +202,45 @@ def main():
             recovery_directory=str(out / "journal"),
             checkpoint_files=checkpoint,
         )
+        if args.benchmark:
+            baseline_done = perf_counter()
+            cells = sorted(
+                {
+                    cell
+                    for cell in workspace.pdk.buffers
+                    if not any(fnmatchcase(cell, pattern) for pattern in workspace.pdk.dont_use)
+                }
+            )
+            trace_bytes = args.physical_trace.read_bytes()
+            trace_identity = {
+                "path": str(args.physical_trace),
+                "size_bytes": len(trace_bytes),
+                "sha256": hashlib.sha256(trace_bytes).hexdigest(),
+            }
+            measurement = run_sample(
+                session,
+                json.loads(trace_bytes),
+                cells,
+                request,
+                json.loads((out / "journal/baseline.json").read_text())["build"],
+            )
+            measurement.update(
+                trace=trace_identity,
+                binding=binding_identity,
+                threads_requested=args.threads,
+                cpu_affinity=sorted(os.sched_getaffinity(0)),
+                thread_activity="external_profile",
+                inputs=input_identities,
+                load_ms=(loaded_at - started) * 1000,
+                initialize_baseline_ms=(baseline_done - loaded_at) * 1000,
+            )
+            return
         current = session.read_physical_result()
         (out / "baseline.json").write_text(
             json.dumps({"execution": baseline, "current": current}) + "\n"
         )
         if args.fresh:
+            session.publish_physical_artifacts(expected_generation=current["generation"])
             (out / "diagnostic.json").write_text(
                 module.ecc.read_physical_diagnostic(session) + "\n"
             )
@@ -174,7 +267,7 @@ def main():
                 batch_capacity=max(len(b["edits"]) for b in batches),
                 total_capacity=sum(len(b["edits"]) for b in batches),
             )
-            frozen = {
+            frozen: dict = {
                 "schema_version": "physical-sta-trace/1.0.0",
                 "source": str(args.prepare_from),
                 "source_sha256": input_identity(args.prepare_from)["sha256"],
@@ -269,6 +362,7 @@ def main():
                 ),
                 flush=True,
             )
+        session.publish_physical_artifacts(expected_generation=len(batches))
         if args.prepare_from:
             (out / "physical-trace.json").write_text(json.dumps(frozen, sort_keys=True) + "\n")
 
@@ -280,13 +374,36 @@ def main():
         print(json.dumps({"failure": failure}), flush=True)
         raise
     finally:
-        if sys.exc_info()[0] is None:
+        failed = sys.exc_info()[0] is not None
+        cleanup_started = perf_counter()
+        try:
             session.close()
+            if args.benchmark:
+                module.close()
+        except Exception:
+            if not failed:
+                raise
+            traceback.print_exc()
         else:
-            try:
-                session.close()
-            except Exception:
-                traceback.print_exc()
+            if measurement is not None:
+                completed = perf_counter()
+                if (
+                    input_identity(loaded) != binding_identity
+                    or input_identity(args.physical_trace) != measurement["trace"]
+                    or any(
+                        input_identity(source["path"]) != source
+                        for source in measurement["inputs"].values()
+                    )
+                ):
+                    raise RuntimeError("physical performance input or binding changed")
+                verified = perf_counter()
+                measurement.update(
+                    evidence_verification_ms=(verified - completed) * 1000,
+                    cleanup_ms=(completed - cleanup_started) * 1000,
+                    session_end_to_end_ms=(completed - started) * 1000,
+                    lifecycle_cleanup_completed=True,
+                )
+                (out / "sample.json").write_text(json.dumps(measurement, allow_nan=False) + "\n")
 
 
 if __name__ == "__main__":

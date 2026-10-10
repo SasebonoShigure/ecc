@@ -152,4 +152,14 @@ RC 编辑复用局部 native/graph 撤销。prepared tree 在 apply 前校验完
 
 仓内物理 probe 只负责加载、提交、查询与记录，独立 fresh 分支重新加载提交后的 DEF/netlist，并由 native CPU/full 重建 RC 和传播。完整比较、canary 与故障注入只属开发验收；输入身份使用分块摘要，不内嵌 Liberty/LEF 文件内容。usage 只保留使用步骤，运行结果放阶段报告和独立证据目录。
 
-生产消费者只请求实际使用的数据。物理 greedy 通过现有查询的 summary_only 取得 generation 与 QOR；完整查询默认仍返回 timing/paths。摘要查询保留物化和报告准备，但不构造或跨 binding 传递未请求的完整返回对象。此选择不控制开发诊断。
+## Stage 14 直接 CSR 编辑与末轮报告
+
+CPU/full 在 native Database 编辑；CPU/incremental、CUDA/full、CUDA/incremental 在权威 CSR/语义索引上直接编辑。保留 IDB、位置、RC 和所选 backend 的共同提交、局部撤销及恢复；不为兼容旧转换路径每批维护 native timing 图。CUDA/full 仍从当前状态完整重建计算 CSR、分层和传播。
+
+候选读取只消费 slack、slew、有效路径标志、负载和 RC；CUDA 不为选择候选回传完整 PathState。generation 来自 baseline/commit，不通过 QOR 查询获取。默认循环删除逐轮报告准备、QOR 汇总和路径序列化，结束后发布一次当前 generation 的完整产物，无编辑退出同样发布。
+
+显式完整查询才构造 native 拓扑视图并物化目标 backend 结果；不得用 CPU full 重算。新提交失效旧视图，pending/poison 拒绝查询。报告使用 analyzePropagatedTiming，成功和失败均不得改变权威 timing 或下一轮候选输入；分配/输出失败可重试，不能返回旧报告或撤销已提交设计。
+
+逐批独立 oracle、完整对象比较与故障注入只属于 ON 验收。性能样本采用 fresh process/session，每轮读取必要候选数据，末轮完整查询和产物发布纳入 optimization_end_to_end_ms；加载、初始化、清理另计，完整循环为一个统计样本。默认预热 5 次、采样 30 次，短 smoke 明示。固定物理 trace 的预先合法化成本与真实 closed-loop 分开记录，不能把前者冒充包含合法化的生产循环。
+
+性能与诊断原始证据放独立运行目录；实际验收证据与限制见 [Stage 14 报告](stage14-progress-report.md)，不以规则说明代替运行证据。

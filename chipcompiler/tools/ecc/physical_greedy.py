@@ -1,7 +1,7 @@
 """Closed-loop data-only buffer selection on the committed physical session."""
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from pathlib import Path
 
 from chipcompiler.tools.ecc.physical_placement import (
@@ -9,13 +9,6 @@ from chipcompiler.tools.ecc.physical_placement import (
     PhysicalBufferLegalizer,
 )
 from chipcompiler.tools.ecc.sta_session import IncrementalStaSession
-
-
-def _setup_qor(current: Mapping[str, object]) -> dict:
-    raw = current["qor_json"]
-    if not isinstance(raw, str):
-        raise ValueError("physical QOR must be serialized JSON")
-    return json.loads(raw)["summary"]["setup"]
 
 
 def run_physical_greedy(
@@ -27,22 +20,19 @@ def run_physical_greedy(
     max_rounds: int = 10,
     max_buffers: int = 1000,
     committed_buffers: int = 0,
+    generation: int = 0,
 ) -> dict:
-    """Commit legal positive-gain batches; observed QOR never vetoes a commit."""
+    """Commit legal positive-gain batches using only candidate inputs each round."""
     for value in (top_k, max_rounds, max_buffers):
         if type(value) is not int or not 0 < value < 1 << 64:
             raise ValueError("greedy budgets must be positive uint64 integers")
-    current = session.read_physical_result(summary_only=True)
-    generation = current["generation"]
-    if type(generation) is not int:
-        raise ValueError("physical generation must be an integer")
     if (
         type(committed_buffers) is not int
         or not 0 <= committed_buffers <= max_buffers
+        or type(generation) is not int
         or not 0 <= generation <= max_rounds
     ):
         raise ValueError("committed physical history exceeds greedy budget")
-    before = _setup_qor(current)
     result = {
         "generation": generation,
         "rounds": generation,
@@ -53,7 +43,14 @@ def run_physical_greedy(
     with log_path.open("a", encoding="utf-8") as log:
 
         def record(value: dict) -> None:
-            log.write(json.dumps(value, allow_nan=False, sort_keys=True) + "\n")
+            log.write(
+                json.dumps(
+                    {"schema_version": "physical-sta-greedy/2.0.0", **value},
+                    allow_nan=False,
+                    sort_keys=True,
+                )
+                + "\n"
+            )
             log.flush()
 
         if generation == max_rounds or committed_buffers == max_buffers:
@@ -133,10 +130,6 @@ def run_physical_greedy(
                     rounds=result["rounds"] + 1,
                     buffers=result["buffers"] + len(edits),
                 )
-                current = session.read_physical_result(summary_only=True)
-                if current["generation"] != generation:
-                    raise ValueError("physical query returned a stale generation")
-                after = _setup_qor(current)
                 record(
                     {
                         "generation": generation,
@@ -144,10 +137,6 @@ def run_physical_greedy(
                         "predicted_gain_ns": [
                             candidate["predicted_gain_ns"] for candidate in candidates
                         ],
-                        "before_setup": before,
-                        "after_setup": after,
-                        "wns_change_ns": after["wns"] - before["wns"],
-                        "tns_change_ns": after["tns"] - before["tns"],
                         "executed_backend": applied.execution.executed_backend.value,
                         "executed_update_strategy": (
                             applied.execution.executed_update_strategy.value
@@ -155,7 +144,6 @@ def run_physical_greedy(
                         "fallback": applied.execution.fallback_to_full,
                     }
                 )
-                before = after
             else:
                 result["stop_reason"] = "round_budget_exhausted"
         except Exception as error:

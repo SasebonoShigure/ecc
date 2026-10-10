@@ -17,6 +17,8 @@
     horizontal_rc_layer = "auto"
     vertical_rc_layer = "auto"
 
+默认每轮只读取候选所需数据，结束后生成一次当前结果的完整报告及产物；无编辑退出也生成基线产物。显式中间查询仍返回当前 generation 的结果。
+
 运行 ecc run。backend 可选 cpu/cuda，update_strategy 可选 full/incremental；省略 STA 配置时仍为 cpu/full/error。RC 层默认取 routing 范围内最低可用方向层，也可填写具体层名。需要 CUDA 编译的 native 库才能选择 cuda。
 
 产物发布失败时，用 ecc run --workspace WORKSPACE --from "Timing optimization" 重试；该入口保留已提交物理编辑。修改上游输入或预算后使用独立 run，不复用旧恢复历史。当前产物由 Timing optimization_ecc/output/physical_session/artifacts/manifest.json 指定；routing 自动读取，不手动选择旧 DEF。
@@ -61,3 +63,15 @@ GPU correctness 在服务器已有 GPU 环境手动执行；选空闲非 0 GPU�
       --target TARGET/diagnostic-1.json --fresh FRESH/diagnostic.json --generation 1 --canaries
 
 OFF 同样运行真实编辑，省略完整诊断；它不能作为 fresh oracle。普通性能入口保持 OFF。
+
+
+## 物理 trace 性能采样
+
+在 ECC 仓库根目录使用 Release/OFF 隔离包；以下命令交错运行四模式，每次启动新进程：
+
+    python test/tools/ecc/physical_sta_benchmark.py \
+      --workspace POST_CTS_WORKSPACE --binding-dir BINDING_OFF/ecc_tools_bin \
+      --def-file BASELINE.def --verilog-file BASELINE.v --sdc DESIGN.sdc \
+      --physical-trace physical-trace.json --output NEW_RUN --threads 128
+
+默认预热 5 次、采样 30 次；短 smoke 可加 --warmup-runs 0 --samples 1。每轮读取候选数据，末轮生成完整报告及产物。该入口重放已合法化的固定 trace，真实闭环使用上述实验流程。结果位于 NEW_RUN/incremental_sta_samples.json；原始样本和日志保留在各轮目录。

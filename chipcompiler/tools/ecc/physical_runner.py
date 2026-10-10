@@ -171,6 +171,7 @@ def run_physical_timing_opt(
                 cells,
                 output / "greedy.jsonl",
                 committed_buffers=committed_buffers,
+                generation=generation,
                 **budgets,
             )
             pending = completion.with_suffix(".pending")

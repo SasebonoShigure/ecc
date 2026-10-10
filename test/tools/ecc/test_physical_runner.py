@@ -169,6 +169,7 @@ def test_physical_entry_filters_pdk_patterns_and_publishes_committed_generation(
         max_rounds=2,
         max_buffers=1000,
         committed_buffers=0,
+        generation=0,
     )
     assert session.publish_physical_artifacts.call_count == (2 if failure == "report" else 1)
     session.publish_physical_artifacts.assert_called_with(expected_generation=2)
