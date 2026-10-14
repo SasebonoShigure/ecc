@@ -1,6 +1,6 @@
-# Stage 0–12 开发检查分类
+# IncreGPUSTA 开发检查分类
 
-状态：Stage 11 已提交；Stage 12 本轮实现与参考测量已收尾，原严格高性能验收未完成。下表及 Stage 7–10 小节保留历史分类；被替换实现以末尾 Stage 11–12 分类为准。以下保留 2026-09-08 冗余清理及后续阶段记录。当前结果见 [清理报告](stage0-6-redundancy-cleanup-report.md)，此前诊断分离结果与限制见 [实施报告](debug-checks-implementation-report.md) 和 [实测证据](debug-check-acceptance.json)。开发规则见 [development-guidelines.md](development-guidelines.md)。复杂度中的 N/E 为节点/边数，B 为累计批次数，D 为本批编辑规模。
+状态：Stage 14.5 本轮优化及参考测量已完成，Stage 12 原严格高性能验收仍未完成。各节保留当时的分类与迁移状态；已被替换的实现以后续明确记录的工作区状态为准，未合入候选不能作为当前默认路径。以下保留 2026-09-08 冗余清理及后续阶段记录。当前结果见 [清理报告](stage0-6-redundancy-cleanup-report.md)，此前诊断分离结果与限制见 [实施报告](debug-checks-implementation-report.md) 和 [实测证据](debug-check-acceptance.json)。开发规则见 [development-guidelines.md](development-guidelines.md)。复杂度中的 N/E 为节点/边数，B 为累计批次数，D 为本批编辑规模。
 
 | 调用链 / 数据 | 用途与复杂度 | 归属 |
 |---|---|---|
@@ -235,3 +235,89 @@ Stage 14 已完成功能、路径剖析及用户调整后的参考成本验收�
 ### Stage 14 受控基线复用
 
 私有 native-export 构造只接受现有 session owner 的受控导出；session/generation、高水位、数组边界和下游 index/state 检查保留在 OFF/ON。重复 reference 指纹重算及刚构建 state 的独立完整证明仅 ON；公共裸输入 factory 仍完整验证。resolver 复用同一导出；batch index 撤销保存实际旧值并预分配，均为 OFF/ON 功能。
+
+## 2026-10-10 百万单元优化补充
+
+- 受控 native export 的 baseline/index 构造：OFF 保留 dense ID、resolver 唯一性、binding 覆盖、session/generation；ON 在索引完成后证明 aggregate 一次。公共裸 index factory 继续全检。
+- sealed builder：OFF/ON 保留 schema、generation、高水位、局部旧值、容量、reference 和 index delta 适用性。邻接成员已在 physical delta 构造时证明；整图副本重演与全图 ArcKey 排序复验只在 ON。公共 descriptor validator 不变。
+- 捕获排序键缓存与末轮借用 ArcKey：功能实现优化，OFF/ON 相同；借用仅限 query guard 生命周期，scatter 身份与 parallel ordinal 仍验证。
+- 实际运行证据及尚未完成的百万门/完整验收见 [优化记录](million-cell-optimization-20261010.md)，不将未运行的诊断记录为通过。
+
+
+### 百万单元加载与起终点构造
+
+IO 名字匹配、连接更新和起终点判定属于 OFF/ON 都需要的功能。优化使用加载函数内的 IO 名字索引，并利用 pin map 的唯一性消除起终点列表的反复全量搜索；不将这些功能移入 debug，也不增加诊断开关或永久缓存。名字索引拥有 key，IO 指针仅在不增删 IO 的单次加载步骤内使用；重复构图保留已有条目及原顺序。验证进度见百万标准单元优化报告。
+
+百万单元优化第七轮：断环的起点/终点成员判断是功能语义，OFF/ON 均保留。只将每次节点访问的线性查找改为本次断环调用内的只读集合查找，仍按既有顺序遍历和选择断环弧；集合不跨构图保留，不改变停止边界。
+
+### 百万单元输入准备优化（2026-10-10）
+
+Verilog 句柄追加、native net/load 首次出现去重和旧连接缓存清理均属于 OFF/ON 必需功能。局部索引替代重复扫描，不关闭输入校验，不改变借用 C view 或连接顺序；解析展开与重复连接行为由独立测试覆盖。加载剖析单列，不能计作传播收益。
+
+无待推断 inout 时的预备 cell graph 没有消费者，直接删除，不移入 ON。最终图清空重建、必要方向推断和断环仍为 OFF/ON 功能；有 inout 时保留预备图。第九版行为与运行证据状态见优化报告。
+
+Verilog 解析树释放属于 OFF/ON 都需要的生命周期功能。第十版由导入器独占 reader、reader 独占 parsed file，借用 view 不负责释放；重新加载失效旧 view。导入后的 IDB 独立拥有语义数据，不为诊断保留整份 AST；释放不放入 debug 分支。sanitizer 与大规模实际内存结果单独验收。
+
+第十三版候选将末轮 native 视图的全图重建替换为共享局部图 patch。原始编辑、图 patch 和 timing 发布仍在受保护查询内完成，准备失败使用同一事务恢复；全图结果准备与身份检查仍保留。未查询的多个批次按最终连接构建新增弧，不通过重复传播补齐结果。该改动是 OFF/ON 功能实现，性能与完整正确性仍待验收。
+
+
+第十四版百万单元优化将直接 CSR 负载准备与受影响邻接准备按本批 net/端点分组，减少重复扫描。它们是 OFF/ON 都需要的功能；局部借用仅在 records 不扩容、节点身份不修改的准备函数内有效。driver、RC 覆盖、sink membership、局部旧值和 canonical 弧顺序不变，不将必要负载计算移入 debug。零/非零电容的独立 native 对照及实际运行剖析分别验收语义和成本。
+
+
+第十五版百万单元优化的邻接排序键缓存和末轮 ArcKey 哈希分组均属于 OFF/ON 的功能实现。键和目标只在受保护准备/查询中借用；排序 tuple 不变，哈希碰撞仍用完整 canonical key 判等，parallel ordinal、覆盖及回滚语义不变。临时容器成本计入真实运行，专用计数/细分计时仅在独立剖析对象中编译，不新增生产诊断接口。
+
+
+第十六版百万单元优化把 direct CSR 不消费的 node role / cell capacitance 捕获请求及其生成、映射复制移入 ON，保留独立 native capture 验证。OFF 恢复测试复用现有 graph-only 视图和 direct CSR，不再依赖诊断请求；真正的节点/弧/负载数据及 session/generation、局部旧值、事务和恢复仍在 OFF/ON 执行。新增实际运行成本与恢复结果证据见优化记录，完整回归状态按新版本单独记录。
+
+
+## Stage 14.5：分类调查中（2026-10-11）
+
+以下为处理归属，未完成的迁移不能记为 OFF 已删除；实现与调用证据在阶段报告逐项关闭。
+
+| 路径 | 归属与成本 |
+|---|---|
+| 当前结果寻址、stable Arc ID到实际目标位置映射 | OFF/ON功能；改进表示与维护方式，不能直接删除或盲用旧槽位 |
+| 受控视图完整pin owner、节点身份、Liberty/ArcKey再证明 | 追踪构造流程后移入ON；目前全图遍历与签名构造仍在OFF，不宣称已移除 |
+| 相同canonical状态反复验证、无消费者快照、同源比较 | 删除；有独立价值的证明及专用复制/序列化才保留ON |
+| 外部输入、实际容量/数值/设备失败、提交绑定、撤销和恢复 | OFF/ON功能；不因假设内部恶意调用而重复全图检查 |
+| timing/QOR/paths及最终产物 | 按实际请求执行；可改变内部表示，不能减少需求或移出计时 |
+
+不为受控状态增加验证token或公开skip-validation。独立oracle与默认生产路径分开，详见[Stage14.5计划](stage14.5-detailed-plan.md)。
+
+隔离候选20正在验证：受控native视图的完整身份重证明仅ON，OFF保留本次查询的实际目标寻址与原子发布。报告重复旁路及其专用撤销链直接删除；旧链proof只属于独立验收二进制。完整路径、CRPR、时序检查及实际报告失败重试仍是功能。候选尚未合入，生产19的迁移状态不变。
+
+### Stage14.5 直接CSR稀疏准备候选（未合入）
+
+直接编辑只借用已提交弧payload，持有真实变化记录；正常OFF不构造native捕获计划。显式native捕获仍按需构造计划，ON保留所选状态证明；同源重建计划再比较的重复证明删除。descriptor/index适用性、会话绑定、局部旧值、RC/load语义和实际undo保留。候选21-r1的RC记录次序修正已通过OFF/ON/无CUDA选定回归；运行拦截确认正常OFF不生成完整capture plan，显式native/ON仍生成。普通二进制24次诊断成本对照通过公开结果核验，百万单元十批验收尚未运行；生产尚未采用。
+
+
+### Stage14.5 按需路径展开候选（未合入）
+
+端点/tag的required、slack、时序检查、完整QOR和报告排名仍是OFF/ON功能。路径点、弧信息和cell/net delay在对应报告、SDF或完整诊断真正读取时按需构造，同generation复用；不属于仅ON诊断。完整oracle的全部路径序列化仍显式展开，普通结果需求不缩减。构造失败不得发布部分路径；实际消费者耗时包括推迟的工作。候选22全新构建验证中，不能据代码宣称性能改善。
+
+### Stage 14.5：2026-10-12 工作区迁移状态
+
+以下是 2026-10-12 当时的迁移状态：已采用69组合、71诊断修复及72末轮报告优化，验收尚在进行。最终工作区状态见后续 2026-10-14 记录。
+
+| 工作 | 当前归属 |
+|---|---|
+| 不可变Liberty模型的内容摘要复用及指纹版本2 | OFF/ON必要输入绑定；同次导出按不可变owner复用，指纹仍覆盖内容及可变字段 |
+| native oracle并行弧序号生成 | 开发验证工具；按完整语义键计数替代平方扫描，保留独立native计算及全部比较字段，不进入普通OFF性能流程 |
+| 报告候选的check弧与捕获时刻复用 | OFF/ON实际报告消费者；仅在一次端点选择内复用，不增设持久缓存。逐候选slew、CRPR和required计算保留；报告仅在消费者请求时运行 |
+
+### Stage 14.5：最终采用状态（2026-10-14）
+
+工作区采用 85 版；前文未合入、待验收等描述保留各轮历史，不代表当前状态。
+
+| 工作 | 用途、复杂度与最终归属 |
+|---|---|
+| CSR 数值与 timing/QOR/paths | OFF/ON 实际消费者直接读取权威结果，按需展开路径；删除普通报告前的完整 native timing scatter。SDF 等确需 native 对象的消费者仍按需物化，成本计入最终消费 |
+| 直接 CSR 稀疏准备及负载/邻接分组 | OFF/ON 保留实际变更、RC/load 和局部旧值；删除普通批次的 native capture plan、无消费者副本和同源重建比较。高扇出实际依赖扫描仍计量，不宣称只与编辑数成正比 |
+| 基线身份与 ExpectedBeforeBinding | OFF 将基线所需内容移入唯一 owner，取消仅用于诊断的第二份完整身份；ON 保留独立诊断身份。session/generation、高水位、局部适用性、真实撤销和恢复均保留 |
+| 图导出到 reference 的节点索引 | OFF/ON 直接转移既有索引所有权，取消 O(N) 重建和逐项分配；公共导出的输入检查及 ON 构造后完整证明保留 |
+| cell Arc fallback 索引 | OFF/ON 仅为缺少 Liberty 弧的 owner 建索引；必要实例检查仍执行，有 fallback 时仍扫描弧。不构造普通实例无消费者的索引 |
+| 私有 reference 导出的 Arc 身份再证明 | 删除；graph producer 已绑定 native rank，受控流程内未发生编辑。公共输入边界及独立 ON 图证明仍保留，不增加验证 token 或公开跳过选项 |
+| IO、Liberty 表达式、units、cell master 的释放 | OFF/ON 生命周期功能；由实际 owner 释放，move 转移所有权，fixture 借用。不能放入 ON，也不长期保留对象掩盖悬挂引用 |
+| 独立 native oracle、完整 graph/timing、level 与 canary | 独立 ON 验收；百万单元完整输出经有界 FIFO 比较，保存紧凑结果。普通 OFF 计时进程不启动 oracle |
+
+实际调用、分配及传输剖析与最终采用版本的回归、1/3 测量见[实施记录](stage14.5-progress-report.md)。索引与基线复制减少有实际分配栈证据；未采用的 75/76/78 不计为默认路径收益。原始 Logger ODR、全仓严格编译/类型检查失败仍保留。

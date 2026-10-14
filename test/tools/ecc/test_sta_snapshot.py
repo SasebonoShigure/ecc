@@ -217,7 +217,7 @@ def _assert_mapping_error(mapping, field, category):
 
 def test_scalar_schema_order_precedes_deferred_cross_field_relations():
     mapping = _ready_mapping()
-    mapping["identity"]["fingerprint_schema_version"] = "2.0.0"
+    mapping["identity"]["fingerprint_schema_version"] = "1.0.0"
     mapping["identity"]["graph_generation"] = -1
     _assert_mapping_error(mapping, "$.identity.fingerprint_schema_version", "enum")
 
@@ -228,7 +228,7 @@ def test_scalar_schema_order_precedes_deferred_cross_field_relations():
 
     mapping = _event_mapping()
     source = copy.deepcopy(mapping["identity"])
-    source["fingerprint_schema_version"] = "2.0.0"
+    source["fingerprint_schema_version"] = "1.0.0"
     current = copy.deepcopy(mapping["identity"])
     current["session_token"] = 2
     mapping["last_rejection"] = {

@@ -14,7 +14,11 @@ native 库、binding、probe 共用生成的构建配置。Python 只读取 nati
 
 仅 ON 执行完整图/索引证明、独立 oracle、验证性第二次传播/重建、完整对象比较、诊断快照/摘要、详细访问计数与恒等式、故障注入。ON 不是保留冗余的理由：同一受控对象的同一不变量只在明确的归属点验证，不增加同源格式之间的等价性证明。关闭时必须同时消除仅为诊断准备的数据与序列化。未运行的验证记录为 not_run，禁止伪造 PASS 或完整验证凭证。
 
+Stage 14.5 起进一步要求：不假设内部调用者会故意破坏受控状态；以所有权、事务顺序和失效规则承担正确性，不重复证明已由流程保证的全图不变量。删除无独立价值的防御与检查，有价值的独立证明放入 ON。必要寻址、实际失败处理和外部输入仍按真实消费者保留。
+
 不能按函数名批量关闭：逐个沿调用链区分外部输入、内部已受控状态以及纯诊断消费者。混合函数必须拆开必要检查与诊断工作。编译开关使用作用域清楚的常量条件或预处理块，不设计通用策略框架。
+
+受控导出之间优先转移已有索引及不可变身份的所有权，不重建等价整表；借用只在保证对象存活且不编辑的作用域内有效。备用索引只为真实 fallback 消费者构建。解析树、模型表达式、units 和 cell master 的释放属于 OFF/ON 生命周期；owner 变更须同步全部消费者与 fixture，不能用诊断开关掩盖泄漏或重复释放。
 
 ## 测试与性能
 
@@ -158,7 +162,7 @@ CPU/full 在 native Database 编辑；CPU/incremental、CUDA/full、CUDA/increme
 
 候选读取只消费 slack、slew、有效路径标志、负载和 RC；CUDA 不为选择候选回传完整 PathState。generation 来自 baseline/commit，不通过 QOR 查询获取。默认循环删除逐轮报告准备、QOR 汇总和路径序列化，结束后发布一次当前 generation 的完整产物，无编辑退出同样发布。
 
-显式完整查询才构造 native 拓扑视图并物化目标 backend 结果；不得用 CPU full 重算。新提交失效旧视图，pending/poison 拒绝查询。报告使用 analyzePropagatedTiming，成功和失败均不得改变权威 timing 或下一轮候选输入；分配/输出失败可重试，不能返回旧报告或撤销已提交设计。
+Stage 14.5 起，CSR timing/QOR/paths 直接消费当前 generation 的权威结果；报告只准备所需语义元数据，按读取需求解码节点与路径，不先完整 scatter 到 native timing。只有 SDF 等需要完整 native 对象的消费者才物化对应 native 视图，不得用 CPU full 重算。新提交失效旧视图与报告缓存，pending/poison 拒绝查询。CSR 报告复用既有 Analyzer/Reporter 的端点与路径处理；native 报告使用 analyzePropagatedTiming，均不得重新传播或改变权威 timing、下一轮候选输入。分配/输出失败可重试，不能返回旧报告或撤销已提交设计。
 
 逐批独立 oracle、完整对象比较与故障注入只属于 ON 验收。性能样本采用 fresh process/session，每轮读取必要候选数据，末轮完整查询和产物发布纳入 optimization_end_to_end_ms；加载、初始化、清理另计，完整循环为一个统计样本。默认预热 5 次、采样 30 次，短 smoke 明示。固定物理 trace 的预先合法化成本与真实 closed-loop 分开记录，不能把前者冒充包含合法化的生产循环。
 

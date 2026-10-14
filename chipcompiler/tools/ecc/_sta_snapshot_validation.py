@@ -149,7 +149,7 @@ def _parse_identity(
 
     raw = _mapping(value, field, _IDENTITY_KEYS)
     schema_version = _const(
-        raw["fingerprint_schema_version"], "1.0.0", f"{field}.fingerprint_schema_version"
+        raw["fingerprint_schema_version"], "2.0.0", f"{field}.fingerprint_schema_version"
     )
     session_token = _u64(raw["session_token"], f"{field}.session_token", positive=True)
     generation = _u64(raw["graph_generation"], f"{field}.graph_generation")

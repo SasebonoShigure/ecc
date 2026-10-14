@@ -1,10 +1,11 @@
 # ECC 中复现 IncreGPUSTA 的分阶段实施计划
 
-> 状态：`v3.5-stage14-accepted`；Stage 0–6 清理已本地提交（ecc `356fa09`、ecc-tools `4b0398753`），Stage 7–8 已完成真实 GPU 验收并提交（ecc `872d474`、ecc-tools `044399b41`）。Stage 9 hybrid CUDA incremental 实现与本机验收完成，阶段性提交为 ecc `a8697e5`、ecc-tools `73aa7816f`；随后 Stage 9 状态文档已提交至 ecc fc6379e，均未 push。见 [Stage 9 报告](incregpusta/stage9-progress-report.md)、[Stage 8 报告](incregpusta/stage8-progress-report.md)、[Stage 7 报告](incregpusta/stage7-progress-report.md)、[清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。历史验收记录保留；本次 [CUDA CI 验证报告](incregpusta/cuda-ci-validation-20260914.md) 记录了三个真实设计的支持缺口。Stage 10 六类语义及三设计四模式、真实 Q/D 两批、OFF/ON 与恢复功能验收完成，见 [Stage 10 报告](incregpusta/stage10-progress-report.md)；lint/type 的未通过项已记录。Stage 10 已于 2026-09-16 提交（ecc-tools 6921b6089）；Stage 10 后内存清理的提交为 ecc `dbb1c8e`、ecc-tools `fec270b8a`。原 Stage 11 实现已撤回。新 Stage 11 已按批准的[详细计划](incregpusta/stage11-detailed-plan.md)完成功能、事务安全和默认路径剖析验收，按用户授权本地提交，未 push；既有类型检查失败和实际限制见[实施报告](incregpusta/stage11-progress-report.md)。Stage 12 的并行传播、full Kahn、patch/undo、批量传输及本轮参考测量已收尾；独立构建回归、CUDA sanitizer、必测用例逐批 native oracle 和跨构建对照证据已记录，CPU sanitizer 原始失败、类型检查失败及权限限制保留。按用户调整后的共享 GPU、每模式预热 1 次/采样 3 次协议，十三组（含宽层百万节点）均绑定修复版 1ca4e4e8，旧版用例重测和最终核验、归档完成；旧数据全部保留。原严格性能门仍为 not_run，不宣称正式高性能验收通过；见 [Stage 12 详细计划](incregpusta/stage12-detailed-plan.md)及[实施记录](incregpusta/stage12-progress-report.md)。Stage 12 已按用户授权本地提交（ecc d91e536、ecc-tools 42b64be72），未 push；Stage 13 已按批准的[详细计划](incregpusta/stage13-detailed-plan.md)完成主体实现与服务器物理正确性验证，结果见[报告](incregpusta/stage13-progress-report.md)；GPU CI 接入待确定，整阶段尚未关闭。当前 Stage 13 实现已于 2026-10-08 按用户授权本地提交，未 push；新增 Stage 14「CSR 原生编辑与末轮报告优化」，原正式性能评估顺延至 Stage 15，Stage 14 已按[详细计划](incregpusta/stage14-detailed-plan.md)完成直接 CSR 编辑、共同事务、候选最小消费、末轮产物及功能/剖析验收；按用户调整的预热 1 次、采样 3 次完成六组参考成本核验，负结果与限制见[实施记录](incregpusta/stage14-progress-report.md)，未 commit、未 push。Stage 15 尚未实施，正式性能门未通过验收。
+> 状态：`v3.6-stage14.5-reference-complete`；Stage 0–6 清理已本地提交（ecc `356fa09`、ecc-tools `4b0398753`），Stage 7–8 已完成真实 GPU 验收并提交（ecc `872d474`、ecc-tools `044399b41`）。Stage 9 hybrid CUDA incremental 实现与本机验收完成，阶段性提交为 ecc `a8697e5`、ecc-tools `73aa7816f`；随后 Stage 9 状态文档已提交至 ecc fc6379e，均未 push。见 [Stage 9 报告](incregpusta/stage9-progress-report.md)、[Stage 8 报告](incregpusta/stage8-progress-report.md)、[Stage 7 报告](incregpusta/stage7-progress-report.md)、[清理报告](incregpusta/stage0-6-redundancy-cleanup-report.md) 和 [开发检查规范](incregpusta/development-guidelines.md)。历史验收记录保留；本次 [CUDA CI 验证报告](incregpusta/cuda-ci-validation-20260914.md) 记录了三个真实设计的支持缺口。Stage 10 六类语义及三设计四模式、真实 Q/D 两批、OFF/ON 与恢复功能验收完成，见 [Stage 10 报告](incregpusta/stage10-progress-report.md)；lint/type 的未通过项已记录。Stage 10 已于 2026-09-16 提交（ecc-tools 6921b6089）；Stage 10 后内存清理的提交为 ecc `dbb1c8e`、ecc-tools `fec270b8a`。原 Stage 11 实现已撤回。新 Stage 11 已按批准的[详细计划](incregpusta/stage11-detailed-plan.md)完成功能、事务安全和默认路径剖析验收，按用户授权本地提交，未 push；既有类型检查失败和实际限制见[实施报告](incregpusta/stage11-progress-report.md)。Stage 12 的并行传播、full Kahn、patch/undo、批量传输及本轮参考测量已收尾；独立构建回归、CUDA sanitizer、必测用例逐批 native oracle 和跨构建对照证据已记录，CPU sanitizer 原始失败、类型检查失败及权限限制保留。按用户调整后的共享 GPU、每模式预热 1 次/采样 3 次协议，十三组（含宽层百万节点）均绑定修复版 1ca4e4e8，旧版用例重测和最终核验、归档完成；旧数据全部保留。原严格性能门仍为 not_run，不宣称正式高性能验收通过；见 [Stage 12 详细计划](incregpusta/stage12-detailed-plan.md)及[实施记录](incregpusta/stage12-progress-report.md)。Stage 12 已按用户授权本地提交（ecc d91e536、ecc-tools 42b64be72），未 push；Stage 13 已按批准的[详细计划](incregpusta/stage13-detailed-plan.md)完成主体实现与服务器物理正确性验证，结果见[报告](incregpusta/stage13-progress-report.md)；GPU CI 接入待确定，整阶段尚未关闭。当前 Stage 13 实现已于 2026-10-08 按用户授权本地提交，未 push；新增 Stage 14「CSR 原生编辑与末轮报告优化」，原正式性能评估顺延至 Stage 15，Stage 14 已按[详细计划](incregpusta/stage14-detailed-plan.md)完成直接 CSR 编辑、共同事务、候选最小消费、末轮产物及功能/剖析验收；按用户调整的预热 1 次、采样 3 次完成六组参考成本核验，负结果与限制见[实施记录](incregpusta/stage14-progress-report.md)，未 commit、未 push。Stage 15 尚未实施，正式性能门未通过验收。
+> 当前工作：百万单元优化统一作为 **Stage 14.5：百万单元性能优化与默认路径精简**。2026-10-11 用户授权结构、流程和算法改进，要求删除或隔离过度防御与重复校验；正确性及实际失败恢复保留。已提交基线为 ECC a8604b5、ecc-tools 7229c5955，后续差异未提交。见[详细计划](incregpusta/stage14.5-detailed-plan.md)和[实施记录](incregpusta/stage14.5-progress-report.md)；85 版已采用，独立内部对照、相关功能回归及用户指定的 OFF 1/3 参考测量已完成，两类百万实际单元的循环配对加速比分别为 121.44×、234.41×。既有 Logger ODR、全仓严格编译和类型检查失败保留；Stage 12/15 正式性能门仍未执行。
 > 文档范围：本计划及阶段说明仅适用于 `IncreGPUSTA`；相关文档维护在 `ecc/docs`，不修改仓库通用 README。
 > 目标仓库：`/home/shigure/code/ecc`
 > 强制开发分支：`IncreGPUSTA`
-> 日期：2026-08-19；最近更新：2026-10-09
+> 日期：2026-08-19；最近更新：2026-10-14
 
 ## 1. 目标、范围与结论
 
@@ -70,7 +71,7 @@ git -C /home/shigure/code/ecc submodule status --recursive
 
 `ECC_INCREGPUSTA_DEBUG_CHECKS` 默认 OFF，与 CMake Debug/Release 独立。重型诊断、完整 oracle/fresh replay/逐字段比较仅 ON 使用；正式性能运行只使用 OFF，且不自动执行这些验证。必要输入/生命周期/算法错误检查和实际事务恢复始终保留。该规则取代旧阶段文档中将全量诊断嵌入默认运行或每个性能样本的要求；详见开发检查规范和本轮分类/实施报告。
 
-首轮范围为阶段 0–15，依次验收：
+首轮范围为阶段 0–15，包含新增阶段 14.5，依次验收：
 
 | 阶段 | 职责 |
 |---|---|
@@ -79,6 +80,7 @@ git -C /home/shigure/code/ecc submodule status --recursive
 | 12 | CUDA 并行计算、规模验证与核心性能验收 |
 | 13 | 生产集成与正确性 CI（原阶段 11） |
 | 14 | CSR 原生编辑与末轮报告优化 |
+| 14.5 | 百万单元性能优化与默认路径精简 |
 | 15 | 正式性能评估、论文可比性与结论（原阶段 14，最初为阶段 12） |
 
 后续清理区分三类：无消费者对象、重复状态、失效接口和同源重复证明直接删除；有独立价值的完整 observation、快照/摘要、oracle、验证性重建/传播、逐字段比较、详细审计和故障注入仅 ON；必要功能与安全语义在 OFF/ON 均保留并改进实现。ON 不是保留冗余的理由，诊断专用复制、遍历和序列化须一并移出 OFF。旧阶段文档将整库/整图复制列为功能成本，只描述历史实现，不要求新阶段继续采用；必须保留的是事务原子性、有效结果和实际恢复能力。后续详细计划与规范应同步此边界。
@@ -1238,9 +1240,35 @@ PreparedBatch
 
 记录必要 CSR 更新、RC 准备、候选读取、最终 native 视图构造及报告成本，以及事务和查询迁移的实际证据。Stage 14 验收路径精简、正确性和实际成本变化；正式加速门和论文结论由 Stage 15 验收。
 
+### 阶段 14.5：百万单元性能优化与默认路径精简
+
+状态：本轮优化、功能回归与用户指定的参考测量已完成（2026-10-14），85 版已采用，未提交。百万单元十批后的完整内部对照通过；已知全仓检查失败保留，不宣称所有检查通过或 Stage 15 正式性能验收完成。见[详细计划](incregpusta/stage14.5-detailed-plan.md)及[实施记录](incregpusta/stage14.5-progress-report.md)。
+
+先分析：
+
+- 根据完整成本追踪存储、编辑、计算及结果消费者，重点检查 native 视图、全图身份再投影、过度防御和重复校验。
+- 允许超出旧计划具体实现方式的结构、流程和算法优化；保留历史事实，新算法以独立正确性证据验收。
+
+交付：
+
+- 以所有权、事务流程、稳定 ID 和失效规则保证受控状态。删除无消费者和同源重复证明；独立诊断及其专用复制、遍历、序列化仅 ON。
+- 保留外部输入、实际容量/数值/设备失败和必要提交/恢复。拆分功能寻址与诊断，不新增公开跳过校验开关或通用校验框架。
+- 优先减少 CSR 结果消费的中间转换，再按瓶颈改进负载/邻接、结果表示及计算算法；消费者成本不得移出计时。
+
+正确性门：
+
+- 独立 OFF/ON、无CUDA、native oracle、当前generation公开结果及失败/恢复回归；不缩减 timing、winner、CRPR、paths、时序检查，不放宽容差。
+- 两类百万实际单元、三模式、十批各100个buffer、末轮完整结果、每配置1次预热/3次采样。前缀预检和剖析不冒充协议样本，百倍目标须实测支持。
+- 百倍主指标为第一次 buffer insertion 开始前至末轮 STA 与提交结束的连续墙钟时间。初始化、backend setup、末轮物化与报告、清理单列，并保留消费者及 cold 全程成本；不得把工作移出计时制造收益。
+- 记录调用、分配、传输和分阶段成本，证明 OFF 不执行已移出的诊断；旧 sanitizer/严格构建失败仍记为失败。
+
+阶段报告重点：
+
+记录结构变化、检查归属、独立验证、完整端到端收益和负结果。参考测量不替代 Stage15 正式统计与论文结论；沿用共同512GB硬上限、swap=0和紧凑证据要求。
+
 ### 阶段 15：正式性能评估、论文可比性与结论
 
-状态：尚未实施；由原 Stage 14 顺延（最初为 Stage 12），承接 Stage 14 优化后的生产流程，Stage 13–14 正确性稳定后开展。本轮只维护计划，不启动实验。
+状态：尚未实施；由原 Stage 14 顺延（最初为 Stage 12），承接 Stage 14 和 Stage 14.5 优化后的生产流程，相关正确性稳定后开展。本轮只维护计划，不启动实验。
 
 **先分析**
 
