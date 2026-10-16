@@ -324,7 +324,7 @@ Verilog 解析树释放属于 OFF/ON 都需要的生命周期功能。第十版�
 
 ## Stage 14.6：待实施的分层与传输精简分类
 
-2026-10-16 首轮源码排查完成。首批 timing-only CPU 基线报告推迟已通过相关 OFF/ON/无 CUDA 回归；J 回传计量改造已通过 OFF 构建及相关回归，ON／无 CUDA／sanitizer 验收尚未执行，其余下面仍列目标归属。实际验证状态见[实施记录](stage14.6-progress-report.md)。当前实现依据与消费者见 [详细计划](stage14.6-detailed-plan.md)。本节 L/P/C 分别表示层数、路径 tag 槽数和时钟工作节点数。停止维护 CPU/incremental、CUDA/full 独立模式，保留 CUDA incremental 实际依赖的 CPU mixed 与内部 full 初始化/恢复/fallback。
+2026-10-16 首轮源码排查完成。首批 timing-only CPU 基线报告推迟已通过相关 OFF/ON/无 CUDA 回归；J 回传计量改造已通过 OFF/ON/无 CUDA 构建及相关回归、OFF memcheck/initcheck，其余下面仍列目标归属。实际验证状态见[实施记录](stage14.6-progress-report.md)。当前实现依据与消费者见 [详细计划](stage14.6-detailed-plan.md)。本节 L/P/C 分别表示层数、路径 tag 槽数和时钟工作节点数。停止维护 CPU/incremental、CUDA/full 独立模式，保留 CUDA incremental 实际依赖的 CPU mixed 与内部 full 初始化/恢复/fallback。
 
 | 数据或工作 | 当前成本/消费者 | 目标归属 |
 |---|---|---|
@@ -339,3 +339,5 @@ Verilog 解析树释放属于 OFF/ON 都需要的生命周期功能。第十版�
 | D2H 分类及既有 Runtime 等待计量 | 每次已有同步 O(1) 计数与两次主机时钟读取；无新同步、事件或全图扫描 | OFF/ON 性能事实；字节/等待恒等式核对属于测试。撤销等待保留到 owner，close 及失败整段成本另计 |
 
 必要工作不能仅因昂贵归为 ON；ON 也不保留无独立价值的重复证明。复杂度和传输量来自源码分析，收益与归属落实须经过运行剖析、CPU/full oracle、OFF/ON 和实际恢复验证。
+
+本批 native 绑定直接读取节点/net 与已传播 clock-point，保留必要所有权及 clock 编辑限制。恢复身份属于 OFF/ON 功能：扫描 native 输入连接与约束，并按唯一已用 cell 编码模型及全局端口阈值；删除此前为了该身份而导出的整份 CSR。文件摘要、IDB 几何、RC 参数、实际恢复与失败处理保留。该改造已通过相关 OFF/ON/无 CUDA 回归；后续 timing workload loader 的迁移仍未通过构建验收。
