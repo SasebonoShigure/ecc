@@ -321,3 +321,20 @@ Verilog 解析树释放属于 OFF/ON 都需要的生命周期功能。第十版�
 | 独立 native oracle、完整 graph/timing、level 与 canary | 独立 ON 验收；百万单元完整输出经有界 FIFO 比较，保存紧凑结果。普通 OFF 计时进程不启动 oracle |
 
 实际调用、分配及传输剖析与最终采用版本的回归、1/3 测量见[实施记录](stage14.5-progress-report.md)。索引与基线复制减少有实际分配栈证据；未采用的 75/76/78 不计为默认路径收益。原始 Logger ODR、全仓严格编译/类型检查失败仍保留。
+
+## Stage 14.6：待实施的分层与传输精简分类
+
+2026-10-16 首轮源码排查完成，下面仍列目标归属；首批仅将 timing-only CPU 基线报告推迟至显式消费者，其余项目尚待实施。实际验证状态见[实施记录](stage14.6-progress-report.md)。当前实现依据与消费者见 [详细计划](stage14.6-detailed-plan.md)。本节 L/P/C 分别表示层数、路径 tag 槽数和时钟工作节点数。停止维护 CPU/incremental、CUDA/full 独立模式，保留 CUDA incremental 实际依赖的 CPU mixed 与内部 full 初始化/恢复/fallback。
+
+| 数据或工作 | 当前成本/消费者 | 目标归属 |
+|---|---|---|
+| CPU 已生成的 level offsets/count 回读 | 重复 H2D→D2H 和等待；host 调度仍需 offsets | 删除回读，复用 pending CPU 状态；真实 device status 保留 |
+| mixed GPU 全节点逆映射及 D2H | O(N log L) 重建、O(N) 传输；下一批 CPU mixed 与 clock_work 仍读取 | 先维护 CPU 紧凑层映射再移除；独立完整排列/逆映射证明仅 ON，显式完整查询按需物化 |
+| 临时上传源保护的同步 | 为保证对象存活，不是数值检查 | 延长既有 staging 生命周期后合并；实际提交、失败和释放等待保留 |
+| 全图 old→old 层序及 roots 扫描 | O(N+E)，部分变化有真实功能意义 | 受控路径维护变化关系及入度；真实 cycle/冲突始终处理，额外完整证明 ON |
+| 路径域重打包、时钟工作表重排/上传 | 未变数据也重复复制，分别 O(N+P)、O(C log C) | 维护真实失效范围；不减少有效 tag、clock 或必要 propagation |
+| 不可变模型 repeated validateTransfer | 相同 owner 的 child/table 重证 | 输入首次/外部裸数据保留，受控 owner 内复用；局部 expected/新值始终检查 |
+| 候选及 summary 查询 | 全节点候选 D2H；summary 也经完整 timing 物化 | 真实候选集合/查询需求决定回传范围；不使用陈旧值、不漏赢家 |
+| CPU/full benchmark 附加 CSR、初始报告准备 | 共同 harness 和旧 lifecycle 的额外开销 | 从 native 语义直接绑定；必要 RAT 保留，完整报告末轮；独立诊断导出 ON |
+
+必要工作不能仅因昂贵归为 ON；ON 也不保留无独立价值的重复证明。复杂度和传输量来自源码分析，收益与归属落实须经过运行剖析、CPU/full oracle、OFF/ON 和实际恢复验证。

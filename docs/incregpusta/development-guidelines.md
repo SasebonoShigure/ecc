@@ -8,6 +8,16 @@
 
 native 库、binding、probe 共用生成的构建配置。Python 只读取 native 的 `incregpusta_debug_checks_enabled`，不提供运行期开关或环境变量。
 
+## Stage 14.6 起的维护范围
+
+自 2026-10-16 起只继续维护 native CPU/full 与 CUDA/incremental；CPU/incremental、CUDA/full 独立模式退出新功能、常规回归与新性能矩阵，旧入口和专有实现按[Stage 14.6 计划](stage14.6-detailed-plan.md)迁移，尚未宣称代码已移除。下文历史阶段对四模式的描述不再构成继续维护旧模式的要求。
+
+正确性仍对独立 fresh native CPU/full；新性能对手为 native CPU/full、HeteroSTA、OpenTimer v2、独立 OpenSTA。CPU mixed builder/Kahn、CUDA 初始化/恢复/显式 fallback 的完整分层传播属于当前路径功能，不能误删。
+
+对每项复制、传输、等待先定位生产者与实际消费者。CPU 已知的 mixed offsets/count 不要求从设备回读；旧 node_to_level 的 host 功能依赖应由受控层映射维护，再取消 GPU 全节点重建/回传。Stage 11 的 offsets/inverse 回传描述是历史实现，不是不可替换的成本。设备失败、提交完成及异步源生命周期仍须保障，不能靠关闭诊断取消它们。
+
+timing-only CPU 基线执行必要 RAT/slack，不提前创建报告分组。需要完整报告的消费者显式调用 analyzePropagatedTiming()；不得用 analyze() 重新传播。默认一次性完整产物流程保持原行为。
+
 ## 必须区分的检查
 
 始终保留外部输入解析与范围、session/generation/owner、算法必需的容量/数值/cycle、unsupported/fallback、事务原子提交、真实回滚与恢复。状态更新、必要快照/索引和恢复所需编辑记录不能放入诊断分支。
