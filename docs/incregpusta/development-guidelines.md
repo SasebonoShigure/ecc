@@ -18,6 +18,10 @@ native 库、binding、probe 共用生成的构建配置。Python 只读取 nati
 
 timing-only CPU 基线执行必要 RAT/slack，不提前创建报告分组。需要完整报告的消费者显式调用 analyzePropagatedTiming()；不得用 analyze() 重新传播。默认一次性完整产物流程保持原行为。
 
+CUDA 分项计量按实际消费者区分分层决策、level 元数据、状态、候选和完整结果回传。delivery_d2h_ms 只表示传播后状态及显式查询的设备事件区间；Runtime 主机等待与 kernel/传输时间重叠，不可相加。撤销等待记入存活 owner，close 单列生命周期成本；构造失败前临时候选的等待不保证保留，失败总量用外层 wall time。
+
+计量复用既有同步点，不为 OFF 采样新增同步或事件。readback 扩展的旧样本缺失字段保持缺失；trace/verdict 当前迁移为 full v7、targeted/incremental v8，consumer raw 和 samples 保持 v2。实际迁移验收状态见阶段报告。
+
 ## 必须区分的检查
 
 始终保留外部输入解析与范围、session/generation/owner、算法必需的容量/数值/cycle、unsupported/fallback、事务原子提交、真实回滚与恢复。状态更新、必要快照/索引和恢复所需编辑记录不能放入诊断分支。
