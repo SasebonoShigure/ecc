@@ -340,4 +340,9 @@ Verilog 解析树释放属于 OFF/ON 都需要的生命周期功能。第十版�
 
 必要工作不能仅因昂贵归为 ON；ON 也不保留无独立价值的重复证明。复杂度和传输量来自源码分析，收益与归属落实须经过运行剖析、CPU/full oracle、OFF/ON 和实际恢复验证。
 
-本批 native 绑定直接读取节点/net 与已传播 clock-point，保留必要所有权及 clock 编辑限制。恢复身份属于 OFF/ON 功能：扫描 native 输入连接与约束，并按唯一已用 cell 编码模型及全局端口阈值；删除此前为了该身份而导出的整份 CSR。文件摘要、IDB 几何、RC 参数、实际恢复与失败处理保留。该改造已通过相关 OFF/ON/无 CUDA 回归；后续 timing workload loader 的迁移仍未通过构建验收。
+本批 native 绑定直接读取节点/net 与已传播 clock-point，保留必要所有权及 clock 编辑限制。恢复身份属于 OFF/ON 功能：扫描 native 输入连接与约束，并按唯一已用 cell 编码模型及全局端口阈值；删除此前为了该身份而导出的整份 CSR。文件摘要、IDB 几何、RC 参数、实际恢复与失败处理保留。该改造已通过相关 OFF/ON/无 CUDA 回归；timing workload loader 与紧凑测量入口已通过独立 OFF/ON/无 CUDA 构建及相关实际进程复验，小用例调用剖析确认 native 路径没有 CSR 导出；百万规模证据仍待补齐。紧凑输入的源文件/规模/批次规则属于外部输入边界，OFF/ON 均保留；native 性能流程不生成仅供 CSR 身份绑定的对象。末轮实际消费者继续完整读取约定结果，中间未运行报告记为 null；独立 oracle 不进入 OFF 子进程。
+
+
+### Stage 14.6：两模式生产边界
+
+公共模式组合校验属于 OFF/ON 输入边界，在绑定和设备访问前执行。CPU/full 的显式快照及 reference/scatter 仍仅 ON 构造，不因保留诊断而恢复 CPU incremental 生产 owner。独立 CUDA/full 重放与其同源比较删除，逐 prefix fresh native CPU/full oracle 保留在 ON；实际回滚、恢复、共同提交、poison 及 CUDA full 初始化/fallback 仍为必要功能。历史四模式记录只读解码，不授权执行旧模式。

@@ -127,10 +127,10 @@ def test_sample_never_reports_success_for_incomplete_work(failure):
         session.publish_physical_artifacts.assert_not_called()
 
 
-def _measurement(mode: str) -> dict:
+def _measurement(mode: str, version: int = 3) -> dict:
     backend, strategy = mode.split("/")
     return {
-        "schema_version": "physical-sta-sample/2.0.0",
+        "schema_version": f"physical-sta-sample/{version}.0.0",
         "build": {"build_config": "Release", "debug_checks_enabled": False},
         "debug_checks_enabled": False,
         "correctness_comparison": "not_run",
@@ -219,20 +219,26 @@ def sample_validator(monkeypatch):
         "acceptance",
     ],
 )
-def test_physical_statistics_reject_mispaired_or_incomplete_loops(sample_validator, fault):
-    modes = sample_validator.MODES
+@pytest.mark.parametrize("version", [2, 3])
+def test_physical_statistics_reject_mispaired_or_incomplete_loops(sample_validator, fault, version):
+    modes = sample_validator.MODES if version == 2 else sample_validator.TIMING_MODES
+    pairs = (
+        (("cpu/full", "cuda/full"), ("cuda/full", "cuda/incremental"))
+        if version == 2
+        else (("cpu/full", "cuda/incremental"),)
+    )
     rows: list[dict] = [
         {
             "warmup": False,
             "repetition": 1,
             "mode": mode,
             "process_wall_ms": 10,
-            "measurement": _measurement(mode),
+            "measurement": _measurement(mode, version),
         }
         for mode in modes
     ]
     document: dict = {
-        "schema_version": "physical-sta-samples/2.0.0",
+        "schema_version": f"physical-sta-samples/{version}.0.0",
         "protocol": {
             "warmups": 0,
             "repetitions": 1,
@@ -251,6 +257,8 @@ def test_physical_statistics_reject_mispaired_or_incomplete_loops(sample_validat
     document["summaries"], document["comparisons"] = sample_validator.consumer_statistics(
         stats,
         metric="optimization_end_to_end_ms",
+        modes=modes,
+        pairs=pairs,
     )
     changed = rows[-1]["measurement"]
     if fault == "missing":
@@ -270,7 +278,7 @@ def test_physical_statistics_reject_mispaired_or_incomplete_loops(sample_validat
     elif fault == "binding":
         changed["binding"] = {"path": "ecc_py.so", "sha256": "different"}
     elif fault == "statistics":
-        document["comparisons"]["cuda/full_vs_cpu/full"]["ci95"] = [2, 3]
+        document["comparisons"][f"{pairs[0][1]}_vs_{pairs[0][0]}"]["ci95"] = [2, 3]
     elif fault == "bootstrap":
         document["protocol"]["bootstrap_resamples"] = 10
     elif fault == "classification":
@@ -346,7 +354,7 @@ def test_benchmark_retains_raw_results_and_stops_on_child_failure(
         )
     else:
         benchmark.main()
-        assert modes == list(sample_validator.MODES)
+        assert modes == list(sample_validator.TIMING_MODES)
         document = json.loads((output / "incremental_sta_samples.json").read_text())
         assert document["sampling_kind"] == "short_smoke"
         assert document["stage15_acceptance"] == "not_run"
@@ -355,7 +363,7 @@ def test_benchmark_retains_raw_results_and_stops_on_child_failure(
 
 @pytest.mark.parametrize(
     ("backend", "strategy"),
-    [("cpu", "full"), ("cpu", "incremental"), ("cuda", "full"), ("cuda", "incremental")],
+    [("cpu", "full"), ("cuda", "incremental")],
 )
 def test_closed_loop_cli_reaches_production_request(tmp_path, monkeypatch, backend, strategy):
     import importlib

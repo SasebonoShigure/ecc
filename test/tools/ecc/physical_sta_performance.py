@@ -71,7 +71,7 @@ def run_sample(session, trace: dict, cell_names: list[str], request: dict, build
     if artifacts["generation"] != len(batches):
         raise RuntimeError("final artifacts have a stale generation")
     return {
-        "schema_version": "physical-sta-sample/2.0.0",
+        "schema_version": "physical-sta-sample/3.0.0",
         "build": build,
         "debug_checks_enabled": False,
         "requested": request,

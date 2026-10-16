@@ -16,6 +16,7 @@ from chipcompiler.tools.ecc.sta_mode import (
     StaSessionStatusCode,
     StaUnsupportedError,
     StaUpdateStrategy,
+    execution_record_from_mapping,
     preflight_stage1_request,
 )
 from chipcompiler.tools.ecc.sta_session import IncrementalStaSession, preflight_sta_request
@@ -211,7 +212,9 @@ def test_physical_baseline_and_current_result_use_the_same_session():
     native = FakeNativeModule()
     with IncrementalStaSession(native, _request(), _CONTEXT) as session:
         record = session.run_physical_baseline(
-            bottom_layer="MET2", top_layer="MET5", recovery_directory="/tmp/checkpoint",
+            bottom_layer="MET2",
+            top_layer="MET5",
+            recovery_directory="/tmp/checkpoint",
             checkpoint_files={"def": "/tmp/design.def"},
         )
         current = session.read_physical_result()
@@ -224,8 +227,10 @@ def test_physical_baseline_and_current_result_use_the_same_session():
     assert native.session.calls[1] == (
         "run_physical_baseline",
         {
-            "bottom_layer": "MET2", "top_layer": "MET5",
-            "horizontal_layer": "", "vertical_layer": "",
+            "bottom_layer": "MET2",
+            "top_layer": "MET5",
+            "horizontal_layer": "",
+            "vertical_layer": "",
             "recovery_directory": "/tmp/checkpoint",
             "checkpoint_files": {"def": "/tmp/design.def"},
         },
@@ -237,7 +242,8 @@ def test_physical_placement_query_preserves_generation_and_native_errors():
     native = FakeNativeModule()
     with IncrementalStaSession(native, _request(), _CONTEXT) as session:
         assert session.read_physical_placement(expected_generation=3, cell_names=["BUF"]) == {
-            "generation": 3, "cells": {"BUF": [2, 4]},
+            "generation": 3,
+            "cells": {"BUF": [2, 4]},
         }
         assert native.session.calls[-1] == ("read_physical_placement", 3, ["BUF"])
         with pytest.raises(ValueError, match="uint64"):
@@ -250,12 +256,18 @@ def test_physical_batch_and_recovery_preserve_edits_and_native_errors():
     with IncrementalStaSession(native, _request(), _CONTEXT) as session:
         result = session.apply_physical_batch(expected_generation=1, edits=edits)
         assert result.generation == 2
-        assert native.session.calls[-1] == ("apply_physical_batch", {
-            "schema_version": "physical-sta-batch/1.0.0",
-            "expected_generation": 1, "edits": edits,
-        })
+        assert native.session.calls[-1] == (
+            "apply_physical_batch",
+            {
+                "schema_version": "physical-sta-batch/1.0.0",
+                "expected_generation": 1,
+                "edits": edits,
+            },
+        )
         recovered = session.recover_physical_baseline(
-            bottom_layer="MET2", top_layer="MET5", recovery_directory="/tmp/journal",
+            bottom_layer="MET2",
+            top_layer="MET5",
+            recovery_directory="/tmp/journal",
             checkpoint_files={"def": "/tmp/input.def"},
         )
         assert recovered == result
@@ -567,14 +579,16 @@ def test_native_record_mismatch_is_a_contract_error():
         pytest.raises(StaExecutionContractError, match="differs"),
         IncrementalStaSession(native, request, _CONTEXT) as session,
     ):
-        native.session.request = _request(StaUpdateStrategy.INCREMENTAL)
+        native.session.request = replace(
+            _request(), fallback_policy=StaFallbackPolicy.FULL_WITH_RECORD
+        )
         session.run_full_baseline()
 
     assert native.session.calls[-1] == ("close",)
 
 
 def _cuda_request():
-    return replace(_request(), backend=StaBackend.CUDA)
+    return replace(_request(StaUpdateStrategy.INCREMENTAL), backend=StaBackend.CUDA)
 
 
 def _cuda_record_mapping():
@@ -582,6 +596,9 @@ def _cuda_record_mapping():
         **_record_mapping(_request()),
         "requested_backend": "cuda",
         "executed_backend": "cuda",
+        "requested_update_strategy": "incremental",
+        "execution_kind": "baseline_only",
+        "fallback_reason": "not_applicable_no_mutation",
     }
 
 
@@ -600,17 +617,13 @@ def test_cuda_preflight_uses_native_resolution_and_preserves_session_lifecycle()
     with IncrementalStaSession(native, request, _CONTEXT) as session:
         result = session.run_full_baseline()
 
-    expected = replace(
-        preflight_stage1_request(_request()),
-        requested_backend=StaBackend.CUDA,
-        executed_backend=StaBackend.CUDA,
-    )
+    expected = execution_record_from_mapping(raw_record)
     assert result == expected
     native.resolve_sta_execution.assert_called_once_with(
-        {"backend": "cuda", "update_strategy": "full", "fallback_policy": "error"}
+        {"backend": "cuda", "update_strategy": "incremental", "fallback_policy": "error"}
     )
     native.create_incremental_sta_session.assert_called_once_with(
-        {"backend": "cuda", "update_strategy": "full", "fallback_policy": "error"}
+        {"backend": "cuda", "update_strategy": "incremental", "fallback_policy": "error"}
     )
     native_session.run_full_baseline.assert_called_once_with()
     assert native_session.calls == [("initialize", "", {}), ("close",)]
@@ -655,13 +668,8 @@ def test_cuda_preflight_rejects_mismatched_or_invalid_native_records(raw_record)
 
 @pytest.mark.parametrize("debug_checks", [False, True])
 def test_cuda_incremental_baseline_uses_native_record_without_cpu_snapshot(debug_checks):
-    cpu_request = _request(StaUpdateStrategy.INCREMENTAL)
-    request = replace(cpu_request, backend=StaBackend.CUDA)
-    raw_record = {
-        **_record_mapping(cpu_request),
-        "requested_backend": "cuda",
-        "executed_backend": "cuda",
-    }
+    request = _cuda_request()
+    raw_record = _cuda_record_mapping()
     native_session = FakeNativeSession(request)
     native = Mock(
         incregpusta_debug_checks_enabled=debug_checks,
@@ -675,16 +683,11 @@ def test_cuda_incremental_baseline_uses_native_record_without_cpu_snapshot(debug
     ):
         result = session.run_full_baseline()
         assert session.snapshot_observation is None
-    assert result == replace(
-        preflight_stage1_request(cpu_request),
-        requested_backend=StaBackend.CUDA,
-        executed_backend=StaBackend.CUDA,
-    )
+    assert result == execution_record_from_mapping(raw_record)
     native.resolve_sta_execution.assert_called_once_with(
         {"backend": "cuda", "update_strategy": "incremental", "fallback_policy": "error"}
     )
     assert native_session.calls == [("initialize", "", {}), ("close",)]
-
 
 
 def test_physical_artifact_generation_rejects_non_integer_and_out_of_range():

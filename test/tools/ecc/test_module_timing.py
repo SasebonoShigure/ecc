@@ -14,6 +14,7 @@ from chipcompiler.tools.ecc.sta_mode import (
     StaExecutionKind,
     StaExecutionRequest,
     StaFallbackPolicy,
+    StaFallbackReason,
     StaUnsupportedError,
     StaUpdateStrategy,
     preflight_stage1_request,
@@ -37,6 +38,22 @@ def _snapshot_mapping(context, state):
     return mapping
 
 
+def _baseline_record(request):
+    record = preflight_stage1_request(
+        StaExecutionRequest(StaBackend.CPU, StaUpdateStrategy.FULL, request.fallback_policy)
+    )
+    if request.backend is StaBackend.CUDA:
+        record = replace(
+            record,
+            requested_backend=StaBackend.CUDA,
+            executed_backend=StaBackend.CUDA,
+            requested_update_strategy=StaUpdateStrategy.INCREMENTAL,
+            execution_kind=StaExecutionKind.BASELINE_ONLY,
+            fallback_reason=StaFallbackReason.NOT_APPLICABLE_NO_MUTATION,
+        )
+    return record
+
+
 class FakeNativeStaSession:
     def __init__(self, owner, request):
         self.owner = owner
@@ -57,12 +74,7 @@ class FakeNativeStaSession:
     def run_full_baseline(self):
         self.owner.run_sta()
         self.state = "baseline_executed"
-        cpu_record = preflight_stage1_request(replace(self.request, backend=StaBackend.CPU))
-        record = replace(
-            cpu_record,
-            requested_backend=self.request.backend,
-            executed_backend=self.request.backend,
-        )
+        record = _baseline_record(self.request)
         return {
             name: value.value if isinstance(value, Enum) else value
             for name, value in vars(record).items()
@@ -165,12 +177,12 @@ def make_module() -> ECCToolsModule:
 @pytest.mark.parametrize("backend", list(StaBackend))
 def test_run_timing_splits_text_reports_and_structured_artifacts(tmp_path, backend):
     module = make_module()
-    request = StaExecutionRequest(backend, StaUpdateStrategy.FULL, StaFallbackPolicy.ERROR)
-    expected = replace(
-        preflight_stage1_request(replace(request, backend=StaBackend.CPU)),
-        requested_backend=backend,
-        executed_backend=backend,
+    request = StaExecutionRequest(
+        backend,
+        StaUpdateStrategy.FULL if backend is StaBackend.CPU else StaUpdateStrategy.INCREMENTAL,
+        StaFallbackPolicy.ERROR,
     )
+    expected = _baseline_record(request)
     module.ecc.StaSessionError = RuntimeError
     module.ecc.resolve_sta_execution = lambda payload: {
         name: value.value if isinstance(value, Enum) else value
@@ -425,35 +437,6 @@ def test_run_timing_stringifies_path_arguments(tmp_path):
         ),
         ("run_sta", (), {}),
         ("destroy_sta", (), {}),
-    ]
-
-
-def test_run_timing_cpu_incremental_without_mutation_is_baseline_only(tmp_path):
-    module = make_module()
-    request = StaExecutionRequest(
-        backend=StaBackend.CPU,
-        update_strategy=StaUpdateStrategy.INCREMENTAL,
-        fallback_policy=StaFallbackPolicy.FULL_WITH_RECORD,
-    )
-
-    record = module.run_timing(
-        work_dir=tmp_path / "data" / "sta",
-        feature_dir=tmp_path / "feature",
-        output_modes=("structured",),
-        execution_request=request,
-    )
-
-    assert record.execution_kind is StaExecutionKind.BASELINE_ONLY
-    assert record.executed_backend is StaBackend.CPU
-    assert record.executed_update_strategy is StaUpdateStrategy.FULL
-    assert record.incremental_batch_executed is False
-    assert record.fallback_to_full is False
-    assert module.ecc.session_requests == [
-        {
-            "backend": "cpu",
-            "update_strategy": "incremental",
-            "fallback_policy": "full_with_record",
-        }
     ]
 
 

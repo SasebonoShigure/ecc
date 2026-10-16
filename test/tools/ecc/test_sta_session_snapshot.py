@@ -100,8 +100,6 @@ class _NativeSession:
             if isinstance(value, BaseException):
                 raise value
             return value
-        if self.request.update_strategy is StaUpdateStrategy.FULL:
-            return None
         state = "released" if self.state == "closed" else "ready"
         return _snapshot_mapping(self.token, state)
 
@@ -161,8 +159,8 @@ def _assert_failed_session_terminal(session, native):
     )
 
 
-def test_incremental_observation_is_token_bound_and_released_exactly_once():
-    request = _request(StaUpdateStrategy.INCREMENTAL)
+def test_cpu_diagnostic_observation_is_token_bound_and_released_exactly_once():
+    request = _request(StaUpdateStrategy.FULL)
     native = _NativeModule(request)
     session = IncrementalStaSession(native, request, CONTEXT)
 
@@ -184,9 +182,10 @@ def test_incremental_observation_is_token_bound_and_released_exactly_once():
     assert native.session.close_calls == 1
 
 
-def test_full_session_keeps_observation_none_through_release():
+def test_off_session_keeps_observation_none_through_release():
     request = _request(StaUpdateStrategy.FULL)
     native = _NativeModule(request)
+    native.incregpusta_debug_checks_enabled = False
 
     with IncrementalStaSession(native, request, CONTEXT) as session:
         session.run_full_baseline()
@@ -194,7 +193,7 @@ def test_full_session_keeps_observation_none_through_release():
 
     assert session.snapshot_observation is None
     assert native.session.token_reads == 1
-    assert native.session.observation_reads == 1
+    assert native.session.observation_reads == 0
 
 
 @pytest.mark.parametrize("token", [True, 0, -1, 1 << 64, "1"])
@@ -213,7 +212,7 @@ def test_session_token_is_an_exact_nonzero_uint64(token):
 
 
 def test_native_close_throw_skips_released_getter_and_clears_public_value():
-    request = _request(StaUpdateStrategy.INCREMENTAL)
+    request = _request(StaUpdateStrategy.FULL)
     close_error = RuntimeError("close failed")
     native = _NativeModule(request, close_error=close_error)
     session = IncrementalStaSession(native, request, CONTEXT)
@@ -261,7 +260,7 @@ def test_body_contract_error_preserved_without_unrequested_observation(close_sta
 
 @pytest.mark.parametrize("release_failure", ["getter", "parse", "transition"])
 def test_requested_observation_release_failure_clears_cached_value(release_failure, monkeypatch):
-    request = _request(StaUpdateStrategy.INCREMENTAL)
+    request = _request(StaUpdateStrategy.FULL)
     cleanup_error = RuntimeError("observation release failed")
     native = _NativeModule(request)
     session = IncrementalStaSession(native, request, CONTEXT)
@@ -288,7 +287,7 @@ def test_requested_observation_release_failure_clears_cached_value(release_failu
 @pytest.mark.parametrize("debug_checks", [False, True])
 @pytest.mark.parametrize("request_observation", [False, True])
 def test_build_flag_controls_explicit_observation_collection(debug_checks, request_observation):
-    request = _request(StaUpdateStrategy.INCREMENTAL)
+    request = _request(StaUpdateStrategy.FULL)
     native = _NativeModule(request)
     native.incregpusta_debug_checks_enabled = debug_checks
     with IncrementalStaSession(native, request, CONTEXT) as session:
@@ -311,7 +310,7 @@ def test_build_flag_controls_explicit_observation_collection(debug_checks, reque
     ],
 )
 def test_initial_snapshot_rejects_wrong_corner_fingerprint(wrong_fingerprint):
-    request = _request(StaUpdateStrategy.INCREMENTAL)
+    request = _request(StaUpdateStrategy.FULL)
     observation = _snapshot_mapping(1)
     observation["identity"]["corner_fingerprint"] = wrong_fingerprint
     native = _NativeModule(request, observation_script=(observation, None))
@@ -330,7 +329,7 @@ def test_run_timing_explicit_sink_requests_observation_before_close(
 ):
     from chipcompiler.tools.ecc import module as ecc_module
 
-    request = _request(StaUpdateStrategy.INCREMENTAL)
+    request = _request(StaUpdateStrategy.FULL)
     native = _NativeModule(request)
     native.incregpusta_debug_checks_enabled = debug_checks
     native.lib_init = lambda **_kwargs: None

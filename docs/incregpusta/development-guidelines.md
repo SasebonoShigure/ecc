@@ -181,3 +181,9 @@ Stage 14.5 起，CSR timing/QOR/paths 直接消费当前 generation 的权威结
 逐批独立 oracle、完整对象比较与故障注入只属于 ON 验收。性能样本采用 fresh process/session，每轮读取必要候选数据，末轮完整查询和产物发布纳入 optimization_end_to_end_ms；加载、初始化、清理另计，完整循环为一个统计样本。默认预热 5 次、采样 30 次，短 smoke 明示。固定物理 trace 的预先合法化成本与真实 closed-loop 分开记录，不能把前者冒充包含合法化的生产循环。
 
 性能与诊断原始证据放独立运行目录；实际验收证据与限制见 [Stage 14 报告](stage14-progress-report.md)，不以规则说明代替运行证据。
+
+## Stage 14.6 测量入口迁移
+
+新测量入口仅支持 native CPU/full 和 CUDA/incremental，输入直接保存源文件身份与实际批次；native 从其数据库建立编辑绑定，不为测试协议导出 CSR。源文件按角色、顺序和内容验证，输入规模从实际加载状态核对。CUDA 仍生成计算需要的真实 CSR，不使用空身份代替输入绑定。
+
+consumer raw/samples v3 默认末轮一次完整消费；主指标为连续 consumer_loop_ms，包含必要物化和报告。每批分项用于拆解，中间未运行的报告字段为 null。加载、准备、清理与 cold end-to-end 独立记录，嵌套设备/主机区间不相加。历史 v2 四模式数据保持可读，不因此保留已迁移入口的旧计算分支。当前公共生产请求仅接受 CPU/full 与 CUDA/incremental；历史记录与 samples v2 只读兼容，不恢复退役计算路径。物理样本使用两模式 v3。独立 native fresh oracle、CPU mixed 分层及必要 CUDA full 初始化/恢复/fallback 保留；测试专用旧链的收敛按阶段计划继续处理。

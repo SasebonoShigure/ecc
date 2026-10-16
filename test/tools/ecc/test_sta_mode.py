@@ -87,14 +87,18 @@ def test_missing_workspace_keys_resolve_to_frozen_default():
         (StaFallbackPolicy.ERROR, StaFallbackPolicy.FULL_WITH_RECORD),
     ),
 )
-def test_all_eight_requests_parse(backend, strategy, policy):
-    assert request_from_mapping(
-        {
-            "STA backend": backend.value,
-            "STA update strategy": strategy.value,
-            "STA fallback policy": policy.value,
-        }
-    ) == StaExecutionRequest(backend, strategy, policy)
+def test_supported_requests_parse_and_retired_modes_fail(backend, strategy, policy):
+    parameters = {
+        "STA backend": backend.value,
+        "STA update strategy": strategy.value,
+        "STA fallback policy": policy.value,
+    }
+    if (backend is StaBackend.CPU) != (strategy is StaUpdateStrategy.FULL):
+        with pytest.raises(StaUnsupportedError) as raised:
+            request_from_mapping(parameters)
+        assert raised.value.capability_reason is StaCapabilityReason.UNSUPPORTED_EXECUTION_MODE
+    else:
+        assert request_from_mapping(parameters) == StaExecutionRequest(backend, strategy, policy)
 
 
 @pytest.mark.parametrize("policy", list(StaFallbackPolicy))
@@ -115,36 +119,24 @@ def test_cpu_full_preflight_returns_exact_full_record(policy):
 
 
 @pytest.mark.parametrize("policy", list(StaFallbackPolicy))
-def test_cpu_incremental_preflight_is_non_fallback_baseline(policy):
-    request = StaExecutionRequest(StaBackend.CPU, StaUpdateStrategy.INCREMENTAL, policy)
-    assert preflight_stage1_request(request) == StaExecutionRecord(
+def test_cuda_without_binding_preflight_is_typed_unsupported(policy):
+    request = StaExecutionRequest(StaBackend.CUDA, StaUpdateStrategy.INCREMENTAL, policy)
+    with pytest.raises(StaUnsupportedError) as raised:
+        preflight_stage1_request(request)
+    assert raised.value.request == request
+    assert raised.value.capability_reason is StaCapabilityReason.BACKEND_UNAVAILABLE
+
+
+def _historical_baseline_record():
+    return replace(
+        _incremental_record(),
         requested_backend=StaBackend.CPU,
-        requested_update_strategy=StaUpdateStrategy.INCREMENTAL,
-        fallback_policy=policy,
         executed_backend=StaBackend.CPU,
         executed_update_strategy=StaUpdateStrategy.FULL,
         execution_kind=StaExecutionKind.BASELINE_ONLY,
-        propagation_scope=StaPropagationScope.FULL_GRAPH,
         incremental_batch_executed=False,
-        fallback_to_full=False,
         fallback_reason=StaFallbackReason.NOT_APPLICABLE_NO_MUTATION,
     )
-
-
-@pytest.mark.parametrize(
-    "strategy,policy",
-    itertools.product(StaUpdateStrategy, StaFallbackPolicy),
-)
-def test_cuda_preflight_is_typed_unsupported(strategy, policy):
-    request = StaExecutionRequest(StaBackend.CUDA, strategy, policy)
-    with pytest.raises(StaUnsupportedError) as raised:
-        preflight_stage1_request(request)
-
-    assert isinstance(raised.value, StaSessionError)
-    assert raised.value.request == request
-    assert raised.value.status_code is StaSessionStatusCode.UNSUPPORTED
-    assert raised.value.capability_reason is StaCapabilityReason.BACKEND_UNAVAILABLE
-    assert raised.value.state == "created"
 
 
 def test_mode_enums_and_record_keys_match_frozen_schema():
@@ -179,13 +171,7 @@ def test_all_four_execution_kinds_validate_and_round_trip_from_mapping():
             StaFallbackPolicy.ERROR,
         )
     )
-    baseline = preflight_stage1_request(
-        StaExecutionRequest(
-            StaBackend.CPU,
-            StaUpdateStrategy.INCREMENTAL,
-            StaFallbackPolicy.FULL_WITH_RECORD,
-        )
-    )
+    baseline = _historical_baseline_record()
     for record in (full, baseline, _incremental_record(), _fallback_record()):
         validate_execution_record(record)
         assert execution_record_from_mapping(_record_mapping(record)) == record
@@ -205,13 +191,7 @@ def test_all_four_execution_kinds_validate_and_round_trip_from_mapping():
             fallback_to_full=True,
         ),
         replace(
-            preflight_stage1_request(
-                StaExecutionRequest(
-                    StaBackend.CPU,
-                    StaUpdateStrategy.INCREMENTAL,
-                    StaFallbackPolicy.ERROR,
-                )
-            ),
+            _historical_baseline_record(),
             fallback_reason=None,
         ),
         replace(_incremental_record(), incremental_batch_executed=False),

@@ -279,7 +279,7 @@ def _signoff_case(tmp_path):
         directory=tmp_path,
         design=OriginDesign(name="gcd", top_module="gcd"),
         pdk=PDK(sdc=sdc),
-        parameters=Parameters(data={"STA update strategy": "incremental"}),
+        parameters=Parameters(data={}),
         logger=_Logger(),
     )
     step = EccStep(

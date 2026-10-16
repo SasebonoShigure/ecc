@@ -24,7 +24,6 @@ from chipcompiler.tools.ecc.sta_mode import (
     StaExecutionContractError,
     StaExecutionRecord,
     StaExecutionRequest,
-    StaUpdateStrategy,
     request_from_mapping,
 )
 from chipcompiler.tools.ecc.sta_qor import (
@@ -462,7 +461,7 @@ def run_sta_without_spef(
                 "post-synthesis STA snapshot sink must be called exactly once"
             )
         _log_sta_execution_record(workspace, execution_record)
-        if execution_request.update_strategy is StaUpdateStrategy.INCREMENTAL:
+        if snapshot_capture[0] is not None:
             _log_sta_snapshot_observation(workspace, run_item.analysis_context, snapshot_capture[0])
     except Exception as exc:
         workspace.logger.warning("Post-synthesis STA failed; synthesis result is kept: %s", exc)
@@ -1083,7 +1082,7 @@ def run_sta(workspace: Workspace, step: EccStep, ecc_module: ECCToolsModule | No
         if len(snapshot_capture) != 1:
             raise StaExecutionContractError("signoff STA snapshot sink must be called exactly once")
         _log_sta_execution_record(workspace, execution_record)
-        if execution_request.update_strategy is StaUpdateStrategy.INCREMENTAL:
+        if snapshot_capture[0] is not None:
             _log_sta_snapshot_observation(
                 workspace, signoff_item.analysis_context, snapshot_capture[0]
             )

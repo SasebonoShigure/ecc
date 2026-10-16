@@ -61,6 +61,7 @@ class StaFallbackReason(str, Enum):
 class StaCapabilityReason(str, Enum):
     BACKEND_UNAVAILABLE = "backend_unavailable"
     UNSUPPORTED_ANALYSIS_FEATURES = "unsupported_analysis_features"
+    UNSUPPORTED_EXECUTION_MODE = "unsupported_execution_mode"
 
 
 class StaSessionStatusCode(str, Enum):
@@ -200,7 +201,7 @@ def request_from_mapping(parameters: Mapping[str, object]) -> StaExecutionReques
     """Resolve an immutable request from Workspace-style internal parameters."""
     if not isinstance(parameters, Mapping):
         raise TypeError("parameters must be a mapping")
-    return StaExecutionRequest(
+    request = StaExecutionRequest(
         backend=_parse_enum(
             _STA_BACKEND_KEY,
             parameters.get(_STA_BACKEND_KEY, _DEFAULT_REQUEST.backend),
@@ -218,41 +219,37 @@ def request_from_mapping(parameters: Mapping[str, object]) -> StaExecutionReques
         ),
     )
 
+    validate_execution_request(request)
+    return request
+
+def validate_execution_request(request: StaExecutionRequest) -> None:
+    """Reject retired combinations before artifact, binding or device work."""
+    _require_type("request", request, StaExecutionRequest)
+    if (request.backend is StaBackend.CPU) != (request.update_strategy is StaUpdateStrategy.FULL):
+        raise StaUnsupportedError(
+            request=request,
+            capability_reason=StaCapabilityReason.UNSUPPORTED_EXECUTION_MODE,
+            message="STA supports only cpu/full and cuda/incremental requests",
+        )
+
 
 def preflight_stage1_request(request: StaExecutionRequest) -> StaExecutionRecord:
     """Resolve a stage-1 request before any artifact or native side effect."""
-    _require_type("request", request, StaExecutionRequest)
+    validate_execution_request(request)
     if request.backend is StaBackend.CUDA:
         raise StaUnsupportedError(request=request)
-
-    if request.update_strategy is StaUpdateStrategy.FULL:
-        record = StaExecutionRecord(
-            requested_backend=request.backend,
-            requested_update_strategy=request.update_strategy,
-            fallback_policy=request.fallback_policy,
-            executed_backend=StaBackend.CPU,
-            executed_update_strategy=StaUpdateStrategy.FULL,
-            execution_kind=StaExecutionKind.FULL_UPDATE,
-            propagation_scope=StaPropagationScope.FULL_GRAPH,
-            incremental_batch_executed=False,
-            fallback_to_full=False,
-            fallback_reason=None,
-        )
-    else:
-        record = StaExecutionRecord(
-            requested_backend=request.backend,
-            requested_update_strategy=request.update_strategy,
-            fallback_policy=request.fallback_policy,
-            executed_backend=StaBackend.CPU,
-            executed_update_strategy=StaUpdateStrategy.FULL,
-            execution_kind=StaExecutionKind.BASELINE_ONLY,
-            propagation_scope=StaPropagationScope.FULL_GRAPH,
-            incremental_batch_executed=False,
-            fallback_to_full=False,
-            fallback_reason=StaFallbackReason.NOT_APPLICABLE_NO_MUTATION,
-        )
-    validate_execution_record(record)
-    return record
+    return StaExecutionRecord(
+        requested_backend=request.backend,
+        requested_update_strategy=request.update_strategy,
+        fallback_policy=request.fallback_policy,
+        executed_backend=StaBackend.CPU,
+        executed_update_strategy=StaUpdateStrategy.FULL,
+        execution_kind=StaExecutionKind.FULL_UPDATE,
+        propagation_scope=StaPropagationScope.FULL_GRAPH,
+        incremental_batch_executed=False,
+        fallback_to_full=False,
+        fallback_reason=None,
+    )
 
 
 def execution_record_from_mapping(record: Mapping[str, object]) -> StaExecutionRecord:

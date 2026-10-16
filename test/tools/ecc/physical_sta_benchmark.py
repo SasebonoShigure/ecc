@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interleave four fresh-process physical traces, including final artifacts."""
+"""Interleave two fresh-process physical traces, including final artifacts."""
 
 import argparse
 import json
@@ -15,10 +15,10 @@ SCHEMA = REPOSITORY / "chipcompiler/thirdparty/ecc-tools/src/operation/iSTA/benc
 
 def main():
     sys.path.insert(0, str(SCHEMA))
-    from validate_incremental_sta_samples import (
+    from consumer_trace_samples import (
         BOOTSTRAP_RESAMPLES,
         BOOTSTRAP_SEED,
-        MODES,
+        TIMING_MODES,
         consumer_statistics,
     )
     from validate_physical_sta_samples import validate_document, validate_sample
@@ -51,7 +51,7 @@ def main():
         command += [f"--{name}", str(getattr(args, name.replace("-", "_")).resolve(strict=True))]
     environment = dict(os.environ, PYTHONPATH=f"{args.binding_dir.resolve().parent}:{REPOSITORY}")
     protocol = {
-        "mode_order": list(MODES),
+        "mode_order": list(TIMING_MODES),
         "warmups": args.warmup_runs,
         "repetitions": args.samples,
         "bootstrap_seed": BOOTSTRAP_SEED,
@@ -73,7 +73,7 @@ def main():
     samples = []
     for warmup, count in ((True, args.warmup_runs), (False, args.samples)):
         for repetition in range(1, count + 1):
-            for mode in MODES:
+            for mode in TIMING_MODES:
                 backend, strategy = mode.split("/")
                 directory = root / f"{'warmup' if warmup else 'sample'}-{repetition}"
                 directory.mkdir(exist_ok=True)
@@ -132,7 +132,7 @@ def main():
                     flush=True,
                 )
     document = {
-        "schema_version": "physical-sta-samples/2.0.0",
+        "schema_version": "physical-sta-samples/3.0.0",
         "protocol": protocol,
         "sampling_kind": (
             "engineering" if args.warmup_runs >= 5 and args.samples >= 30 else "short_smoke"
@@ -150,6 +150,8 @@ def main():
             for sample in samples
         ],
         metric="optimization_end_to_end_ms",
+        modes=TIMING_MODES,
+        pairs=(("cpu/full", "cuda/incremental"),),
     )
     document.update(summaries=summaries, comparisons=comparisons)
     validate_document(document)

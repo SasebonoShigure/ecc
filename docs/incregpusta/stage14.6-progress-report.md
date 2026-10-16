@@ -1,6 +1,6 @@
 # Stage 14.6 实施记录
 
-日期：2026-10-16。基线为 ECC 8f427ef、ecc-tools 79e3106df。状态：实施中。首批已提交推送（ECC d6b7ee4、ecc-tools 1d13fe226）；第二批回传与等待计量已提交推送（ECC a163804、ecc-tools 8da1527fc）。本次提交第三批已验证的 native 基线绑定及对应文档；后续加载器与测量入口迁移保留工作区差异，不代表阶段完成。
+日期：2026-10-16。基线为 ECC 8f427ef、ecc-tools 79e3106df。状态：实施中。首批已提交推送（ECC d6b7ee4、ecc-tools 1d13fe226）；第二批回传与等待计量已提交推送（ECC a163804、ecc-tools 8da1527fc）。第三批 native 基线绑定及对应文档已提交推送（ECC 4f409c3、ecc-tools b14f47ede）；本次 checkpoint 包含后续加载器、测量入口和生产模式迁移，不代表阶段完成。
 
 ## 首批改动
 
@@ -50,14 +50,62 @@ ecc-tools 提交：b14f47ede。
 - physical-sta-baseline 升至 2.0.0；旧 journal 明确拒绝，不做兼容重放。模型覆盖仍为 baseline 已用 cell，未扩大为未来尚未使用的全部 buffer 模型身份。
 - 新增实际传播时钟 net 拒绝，以及连接顺序、约束、已用模型、全局阈值变化后的恢复拒绝测试；模型不变的恢复须成功。源码冻结在 batch04-source.json。driver04.exit=0，独立 Release OFF/ON 构建及各 6 项相关回归、无 CUDA 构建及 4 项回归通过，无跳过；实际构建开关已核对。小型原始日志与哈希在 checkpoint04-evidence。本批尚未做专项 sanitizer 和调用剖析，不代表完整 I 或阶段验收。
 
-## 第四批：native-only 加载边界（构建失败，未提交）
+## 第四批：native-only 加载边界（原构建失败，后续修复见第五批）
 
 - 加载器提供直接借用 native/session/authority 的回调；原 CSR 回调继续显式导出并校验其支持范围。实际加载、operation guard 和清理共用同一实现，无运行期开关。
 - native 事务测试改用 native-only 回调；完整 CSR 导出留在测试中用于 frozen identity 和回滚等价证明。补充回调失败后的清理及同进程重开测试。
 - native 事务测试迁出 CUDA-only probe，独立 target 在 OFF、ON 和无 CUDA 构建均可运行；删除旧 native-transactions CLI，公共 timing 文件检查移动到共享测试 helper。
-- source05/batch05-source.json 已冻结，driver05.exit=1：OFF/ON/无 CUDA 配置通过，三种构建失败，运行测试未执行。OFF/ON 的 native 测试间接包含 CUDA helper，缺少 MixedLevelizationTelemetry.hpp；无 CUDA 构建另报 NativeExecutionAuthority／NativeCandidateExecutor 类型不完整及 NativeExecutionFailpoint 未声明。报告 helper 的移位修复保留工作区，其他依赖问题待修复，全部尚未复验；原始失败保存于 checkpoint05-build-failure-evidence。
-- 后续紧凑输入与末轮 benchmark 迁移尚未完成 controller/schema 同步，未构建验收，本次不提交。source05 不包含这部分后续修改。
+- source05/batch05-source.json 已冻结，driver05.exit=1：OFF/ON/无 CUDA 配置通过，三种构建失败，运行测试未执行。OFF/ON 的 native 测试间接包含 CUDA helper，缺少 MixedLevelizationTelemetry.hpp；无 CUDA 构建另报 NativeExecutionAuthority／NativeCandidateExecutor 类型不完整及 NativeExecutionFailpoint 未声明。后续修复已移走 CUDA 报告 helper 依赖并直接包含 native 执行定义，原失败仍保留；新源码尚待运行复验；原始失败保存于 checkpoint05-build-failure-evidence。
+- source05 不包含后续紧凑输入及末轮 benchmark 迁移，不能将后续结果归给这个失败版本。
+
+## 第五批：紧凑输入与末轮测量
+
+- 测量入口仅接受 native CPU/full 与 CUDA/incremental；原 Stage12Benchmark 和旧 probe 分发已删除。其他生产入口的模式收敛尚未完成。
+- 紧凑输入 v2 校验有序实际源文件身份、输入规模及既有批次规则。native 直接加载并编辑，不构造 CSR baseline identity；CUDA 使用计算本来需要的真实 CSR 身份。
+- 每轮只执行编辑和计算，末轮读取完整 timing/QOR/paths。samples v3 使用连续 consumer_loop_ms，拆分加载、准备、提交、最终物化/报告和清理；未执行的中间报告为 null，正确性比较及诊断为 not_run。历史 samples v2 与 physical 格式仍可读。
+- 主机 Python 8 项及历史 schema 自检通过；首次 lint 失败已修复并通过。显式修改文件类型检查为 43 项错误，基线同口径为 39 项；新增 4 项来自测试可空返回值，修复后显式检查为 39 项，与基线既有错误相同，新增文件不再报错；lint 通过。旧错误仍为失败。
+- driver06.exit=1：三种配置均成功，构建均失败，运行回归未执行。OFF/ON 报 6 处 JSON/nullptr 条件表达式类型歧义；无 CUDA 报 build-info helper 间接包含旧 DualCsrReplayTypes.hpp。原始日志及哈希已取回 checkpoint06-build-failure-evidence。
+- 改为显式 JSON null，并把既有 build-info 函数移到只依赖配置和 JSON 的测试头；新增 cuda_enabled 读取真实生成配置。旧 serializer 复用同一函数，不新增兼容包装。修复与 Python 类型收窄冻结为 batch07/source07，使用独立 Release OFF/ON/无 CUDA 目录重新构建；07:16 UTC 已确认 OFF 配置成功且构建运行。旧 source06 保留。运行验收尚未完成，不作速度或全阶段结论。
 
 ## 剩余范围
 
-I 的 native-only 加载运行验收、紧凑输入与末轮 benchmark 迁移、模式收敛及 A–H 优化仍未完成。未取得新加速结果；Stage 13 遗留项、Stage 12/15 正式性能门及既有严格构建、类型和 sanitizer 失败保持原记录。README、用户 CLAUDE 和独立报告不纳入本次提交。
+I 的加载器和测量进程已通过针对性验证，百万单元初始化剖析见下文；模式退役剩余测试链及 A–H 优化仍未完成；测量 controller 的实际小用例验证见第六批补验。未取得新加速结果；Stage 13 遗留项、Stage 12/15 正式性能门及既有严格构建、类型和 sanitizer 失败保持原记录。README、用户 CLAUDE 和独立报告不纳入本次提交。
+
+
+### 第五批后续复验
+
+- source07 三套 Release OFF/ON/无 CUDA 配置、构建和实际 build-info 均通过；ON 11 项相关测试通过。OFF/无 CUDA 原运行各有一项新测试失败，原夹具将四个编辑复制为八个，超过 engineering_smoke 的总限额 4。现保留原四个互不冲突的编辑，拆成两批各两个，更新第二批 token 序号，未放宽边界校验。
+- 修正测试使用身份相同的 source07 二进制。无 CUDA 和 ON 复验通过；首次 OFF 复验因启动脚本覆盖容器库搜索路径而报 CUDA 驱动加载错误，恢复原环境后通过。原两次失败保留；最终实际进程覆盖连续两批、重复 native 运行、native/CUDA 完整公开 QOR/paths 对照及 malformed 输入拒绝。原构建及测试证据在 checkpoint07-evidence，修正记录在 checkpoint07-corrected-contract。
+- 独立 GDB 剖析先停于 main、确认共享库符号解析，再观测入口及完整返回。该两批用例的 native CSR graph/reference 导出均为 0 次，analyze 为 0 次，analyzePropagatedTiming 为 1 次；native 完整构图和传播为基线加两批共 3 次。CUDA 只调用一次结构构图、CSR reference 导出和设备初始化，GPU propagation 为 3 次；native timing 传播为 0 次。两模式正常退出，公开结果与未插桩运行一致，证据在 checkpoint07-profile。
+- 上述调用证据只证明该实际用例的路径，不代表全部输入或性能收益。GDB 时间包含插桩和嵌套，不相加、不作为采样。百万单元初始化分解、完整阶段回归和新性能对比仍未执行。
+- 已按原哈希迁移 wide/multiclock 的小规模及百万单元紧凑输入，保留原网表、工艺文件、十批各 100 次编辑和真实规模；只补有序源文件身份，未复制大型网表。compact-inputs07/identity.json 保存来源与哈希，输入迁移不代替运行验收。
+- 夹具与剖析证据范围经独立复审，无静态阻断；修改文件 lint 通过。类型检查既有 39 项错误仍记失败。当前后续改动未提交，整个 Stage 14.6 尚未完成。
+
+
+## 百万单元初始化剖析
+
+profile08 的四个诊断进程均正常退出；wide_2500002（1,000,000 个单元）及 multiclock_2666692（1,000,008 个单元）分别执行 native CPU/full 和 CUDA/incremental。每个进程仅使用派生的首批 100 个编辑，不是冻结十批协议的性能样本。原始十批输入未改动。
+
+两设计的完整公开结果均与对应 native 结果一致。native 不导出 CSR，完整传播为基线加一批，报告后处理仅末轮一次；CUDA 只构造一次 native 结构和 CSR 输入，GPU 传播为基线加一批，没有 native timing 重算。所有观察断点均解析并核对入口、返回和正常退出。
+
+CUDA 结构构图约 27 秒，CSR reference 导出约 62/72 秒，提示初始化仍有显著主机成本；这些是带 GDB 插桩的嵌套区间，不相加、不作为加速样本。完整内部 oracle、实际工作线程剖析仍为 not_run。紧凑证据 checkpoint08-profile 共 39 文件约 93 KB，已取回并逐文件核验哈希。
+
+## 第六批：生产模式及调用方迁移
+
+- Python/native 公共入口只接受 CPU/full 和 CUDA/incremental，在加载或设备访问前明确拒绝退役组合。历史 execution record 仍可解码。CPU/full 的显式 snapshot/reference/scatter 诊断仅 ON 可用，OFF 不生成观察对象。
+- 删除物理会话 CPU incremental owner、计算和发布分支，以及独立 CUDA/full replayer、probe、controller；保留 native full、CUDA incremental、必要 full 初始化/恢复/fallback 和物理共同事务。
+- retained CUDA controller 逐 prefix 使用独立 fresh native CPU/full 进程，核验实际模式、prefix、构建诊断状态和无 fallback。新增公开结果 stream/file 对照；不以同源 CUDA/full 比较替代 native oracle。
+- 物理 benchmark 同步为两模式和 physical samples v3；历史 v2 四模式仅保留验证读取。独立审查发现的旧统计 import 与四模式循环已修复，审查复验无静态阻断。Stage 5/6 旧诊断 orchestration 及测试专用 full API 尚未全部收敛，不能宣布完整模式退役结束。
+- 父仓库 test/tools/ecc：415 项通过；测量调度 8 项通过；修改文件 lint、两仓库 diff 检查通过。扩展到全部本轮 Python 文件后，类型检查仍失败：配置实际项目与虚拟环境的当前 20 文件和基线 18 文件均为 154 项相同诊断，没有新增消息。旧六文件的 39 项记录保留，不混用检查范围。
+- source09 冻结当前 native 源码。首次构建脚本误改缓存路径，三配置在编译前失败；第二次误改清单名称，在加载清单前失败。原日志保留。修正后的 batch09c 使用同一源码、独立 Release OFF/ON/无 CUDA 构建目录；三套构建及真实 build-info 均通过。原 profile08 使用 source07，不冒充 source09 验收。
+
+
+### 第六批补验与提交边界
+
+ON 的 19 项相关回归全部通过；OFF 的 13 项、无 CUDA 的 9 项各有一项事务测试失败：测试替身仍要求 OFF 已关闭的诊断 snapshot context。修复只让该替身在 OFF 返回基线完成，ON 仍捕获快照。独立复核确认实际 native 事务、撤销、放弃和所有权断言保留；以原编译、链接参数和同一生产库重新编译该测试对象，三配置均通过。原失败二进制与日志未覆盖，当前源码比 source09 多这项测试修复及统计模块末尾空行清理。
+
+真实两模式 controller 完成每模式 1 次预热、1 次样本，四个子进程均成功，完整公开结果一致；这是小夹具 contract smoke，性能门仍为 not_run。native/CUDA baseline 对照通过；传播时钟测试最初因脚本漏建已有 independent oracle target 未执行，补建后通过。
+
+证据已取回并逐文件核验：checkpoint09-build-evidence（约 102 KB）和 checkpoint09-supplement-evidence（约 289 KB）；checkpoint09-targeted-acceptance.json 汇总最终局部验收并保留所有原失败。本次不宣称完整 Stage 14.6、全部 sanitizer、真实设计全矩阵或正式性能门通过。
+
+本批 ecc-tools 提交：9f843e36a；按用户要求提交、推送当前 checkpoint，后续阶段工作继续保留独立验收边界。

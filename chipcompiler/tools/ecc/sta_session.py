@@ -20,6 +20,7 @@ from chipcompiler.tools.ecc.sta_mode import (
     StaUpdateStrategy,
     execution_record_from_mapping,
     preflight_stage1_request,
+    validate_execution_request,
 )
 from chipcompiler.tools.ecc.sta_snapshot import (
     StaAnalysisContext,
@@ -231,8 +232,7 @@ def preflight_sta_request(
     native_module: _NativeStaModule | None = None,
 ) -> StaExecutionRecord:
     """Resolve CUDA capability from the binding before creating outputs or a session."""
-    if not isinstance(request, StaExecutionRequest):
-        raise TypeError("request must be StaExecutionRequest")
+    validate_execution_request(request)
     if request.backend is StaBackend.CPU:
         return preflight_stage1_request(request)
     if native_module is None:
@@ -317,10 +317,7 @@ class IncrementalStaSession:
             return self._snapshot_observation
         raw_observation = self._call_native(lambda: native_session.csr_snapshot_observation)
         observation = snapshot_observation_from_mapping(raw_observation)
-        if (
-            self._request.backend is StaBackend.CUDA
-            or self._request.update_strategy is StaUpdateStrategy.FULL
-        ):
+        if self._request.backend is StaBackend.CUDA:
             if observation is not None:
                 raise StaExecutionContractError(
                     "this native STA mode must not expose a CPU snapshot observation"
@@ -328,7 +325,7 @@ class IncrementalStaSession:
         else:
             if observation is None:
                 raise StaExecutionContractError(
-                    "cpu/incremental native STA session requires a ready snapshot observation"
+                    "CPU diagnostic query requires a ready snapshot observation"
                 )
             if (
                 observation.state is not StaSnapshotState.READY
