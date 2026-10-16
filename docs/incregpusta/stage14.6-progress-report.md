@@ -109,3 +109,12 @@ ON 的 19 项相关回归全部通过；OFF 的 13 项、无 CUDA 的 9 项各�
 证据已取回并逐文件核验：checkpoint09-build-evidence（约 102 KB）和 checkpoint09-supplement-evidence（约 289 KB）；checkpoint09-targeted-acceptance.json 汇总最终局部验收并保留所有原失败。本次不宣称完整 Stage 14.6、全部 sanitizer、真实设计全矩阵或正式性能门通过。
 
 本批 ecc-tools 提交：9f843e36a；按用户要求提交、推送当前 checkpoint，后续阶段工作继续保留独立验收边界。
+
+## 第七批：删除独立 CUDA/full 的整图 staging（验证中）
+
+- 删除仅剩测试调用的 `stageFull`、`stageFullNativeExport`、`stageFullCsr`，以及完整 Dual-CSR 重打包和第二份设备图的提交／撤销分支；不再通过旧测试维持退役模式。CUDA 初始化和 patch 的完整分层 fallback 继续保留。
+- RC 仍需要旧／新 net buffer 隔离。将实际使用的备用 RC buffer、descriptor 放回持久 `RcPatchStorage`，保留成对交换、失败恢复、容量复用及清理等待；没有将真实撤销移入 debug。
+- RC 容量增长、并行 launch、查询后编辑和 native RC 编辑改测实际 patch；新增模型增长后数值失败的 patch 撤销证明。旧完整重建专属测试删除，同一实例模型不同负载、部分 patch、cycle、owner/generation 及 ON 分配异常仍保留。
+- 两项独立静态审查均未发现阻塞项，差异检查通过。新源码冻结为 source10，Release OFF（省略诊断选项）、ON 和无 CUDA 在独立目录构建；2026-10-16 09:19 UTC 确认 OFF 配置成功、构建仍在运行，尚无本批运行验收结果。不将先前 source09 或旧完整重建测试作为本批通过证据。
+
+本批 ecc-tools 提交：54fd11223；按用户要求提交并推送验证中的 checkpoint，Stage 14.6 仍未完成。
