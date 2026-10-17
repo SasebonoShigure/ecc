@@ -118,3 +118,20 @@ ON 的 19 项相关回归全部通过；OFF 的 13 项、无 CUDA 的 9 项各�
 - 两项独立静态审查均未发现阻塞项，差异检查通过。新源码冻结为 source10，Release OFF（省略诊断选项）、ON 和无 CUDA 在独立目录构建；2026-10-16 09:19 UTC 确认 OFF 配置成功、构建仍在运行，尚无本批运行验收结果。不将先前 source09 或旧完整重建测试作为本批通过证据。
 
 本批 ecc-tools 提交：54fd11223；按用户要求提交并推送验证中的 checkpoint，Stage 14.6 仍未完成。
+
+
+### 第七批复验：RC 测试断言修正
+
+source10 的独立 Release OFF/ON/无 CUDA 构建及 build-info 均通过。原回归 OFF 为 16/18、ON 为 19/21、无 CUDA 为 7/7；前两者均在 targeted/mixed session 的 RC 复制断言失败，原结果仍记失败，保存于 checkpoint10-build-evidence。
+
+诊断实测该用例稳态分配为 0，四个节点的 D2D 为 32 字节，来自 mixed 分层必需的旧层序复制。原测试迁移后仍要求 D2D 为零，现改为只允许这份层序复制；未改生产计算或放宽数值比较。以原构建参数和同一生产对象重新编译修正测试，OFF/ON targeted、mixed 均通过；OFF mixed 的 CUDA memcheck/initcheck 均为零错误。
+
+## 第八批：旧执行链的消费者迁移
+
+- 语义 native-view 测试直接组合现有 graph/index/resolver patch，以独立 CPU reference 产生 scatter 输入，移除旧 coordinator 链接依赖。保留连续不查询、失败原子性及重试、查询后继续编辑、parallel arc 身份，并迁入 inactive peer 不影响活动身份及后续编辑的检查。
+- 从旧 controller 移出已有的子进程/JSON 比较与功能 timing/level 校验函数；CUDA、物理比较和性能消费者直接引用窄测试 helper。计算过程及容差不变，旧 CLI 暂保留，整条旧执行链删除尚未完成。
+- OFF/ON/无 CUDA 均按原严格参数重编译语义视图测试，并移除 coordinator 静态库后链接、运行通过。证据复用 source10 生产对象，不宣称已完成后续删除后的全量构建。checkpoint11-migration-evidence 共 58 文件、约 36 KB，已取回并逐文件校验。
+- 独立审查发现两个导入遗漏，已修复；Stage 5/6 控制器自检、8 项性能编排测试、物理/CUDA/workload CLI 启动检查、修改文件 lint 和差异检查通过。修改文件类型检查仍失败：基线 6 文件与当前 8 文件均为 57 项相同诊断，无新增消息；此范围与前述 154 项检查不同。
+- 本批仅为已验证的迁移 checkpoint；完整 Stage 14.6、其余存储优化、旧链删除、全面 sanitizer 和正式性能门仍未完成。README、用户 CLAUDE 与独立报告保持原样。
+
+本批 ecc-tools 提交：caa49293d；按用户要求提交并推送当前 checkpoint。
