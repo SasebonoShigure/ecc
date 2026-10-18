@@ -306,3 +306,39 @@ source27 冻结 156 个变更文件、72 个删除，归档 SHA256 为 0cc745b3d
 新增回归覆盖不同查询顺序的真实回传字节、空图、重复读取、事务放弃和提交失效，并在 ON 枚举实际 host/CUDA 分配失败及重试。独立静态审查发现部分报告缓存后读取标量应复用设备容量、零 cudaMalloc，已修复测试的错误正计数断言；两份审查无剩余静态阻塞。部分缓存补缺仍有暂存及 host 复制，完整结果后再请求标量会增加约 24N bytes host 缓存，不宣称零复制。
 
 05:59 UTC 只读核对 source27 仍在运行，OFF 配置成功、构建未结束；该快照不含本组标量改动，不能作为其验证证据。本次两仓库差异检查通过，新增标量代码及测试尚未编译运行。按用户要求提交并推送开发检查点，保留已有失败记录；完整 Stage 14.6、剖析及百万门 1 次预热/3 次采样尚未完成。
+
+
+### G 构建失败与最小修复
+
+source27 最终 driver=1：OFF/ON 组件编译通过，各两项 session 测试在新夹具的 257 线程配置下报弧初始化 launch 资源不足；CUDA 后续主回归未执行。无 CUDA 的既定构建、相关回归和隔离 binding 通过。39 份小型证据已取回并校验，压缩 100389 B。
+
+同源码、同编译参数的独立资源诊断正常结束，initializeArcs 为每线程 255 个寄存器。测试改用 64/256 线程；130 个重叠路径根在 64 线程下仍覆盖跨 block 行为。保留原资源错误，不改变生产 kernel 或数值容差。source28 的 OFF/ON 编译另发现标量读取引用另一编译单元私有计时 helper，已改为直接使用 std::chrono::steady_clock；原编译失败保留，无 CUDA 后续检查仍待结束。
+
+两项修复经独立静态复核，冻结为 source29（归档 SHA256 4386f09eebba0ffa821151c37b1de663ec52ca8b7c9c3cdf1311335023ceeee8）。06:23 UTC 核对 GPU 1、tmux stage146-batch29、锁定镜像及实际共同 512 GB/swap=0 限制，OFF 配置成功，独立 OFF/ON/无 CUDA 构建进行中。查询及生产两批调用剖析脚本已准备，必须待新版本回归通过后执行；目前没有本组运行通过或性能结论。修复及本记录未提交推送，百万门 1/3 测量仍未执行。
+
+### G 主测试构建接线修复（2026-10-18）
+
+source29 的 Release/OFF 组件构建和测试通过；主测试构建因 CsrReportContractTest.cpp 间接包含 CUDA 内部状态头而失败。该测试只使用 TimingReporterProbeAccess，现改为直接包含其 PublicTimingJson.hpp；没有扩大 CUDA 依赖或修改算法、断言与容差。独立静态审查无阻塞。原失败日志保留。
+
+修复已冻结为独立 source30，正在空闲 GPU4、共同 512 GB/swap0 容器中构建 OFF/ON/无 CUDA；尚无修复后主回归通过结论。物理 trace、闭环、报告产物和实际 API 剖析脚本已准备并核验身份，等待构建及前置测试通过。百万门 1/3 采样尚未执行。
+
+
+### G 报告投影的未初始化字节修复
+
+source30 的独立 Release OFF/ON 组件、主回归与隔离 binding 均通过；2026-10-18 07:20 UTC 无 CUDA 主构建仍在运行。OFF mixed 的 initcheck 返回 86，报告 6744 项未初始化访问；memcheck、racecheck、synccheck 及 fallback 的 memcheck/initcheck 通过。不能以功能回归通过覆盖 sanitizer 失败。
+
+已打印的 100 项均发生在路径投影 D2H。源记录在传播初始化时整段清零，但新 gather 的结构赋值未保证写入目标 padding。两处 gather 改为从实际源子对象复制完整记录，覆盖 node/details/scalar 与 path；不增加分配、传输量或等待。独立审查通过。单编译单元重编并替换副本静态库后，同一 mixed 功能检查与 initcheck 均通过，后者为 0 errors；原源码、库和 executable 哈希未变。首次诊断脚本误要求静态库在原链接行只出现一次，启动断言失败；修正版保留原重复链接，原失败也归档。
+
+20 份紧凑证据已取回 report-padding31-evidence，压缩 22984 B，逐文件哈希通过。这是局部修复验证，完整修复版 source31 的 OFF/ON/无 CUDA 回归仍在进行；07:17 UTC 已核验其锁定镜像及实际共同 512 GB/swap0 限制。物理矩阵、生产调用剖析、CPU sanitizer 与百万门 1/3 仍待验收；后续修复未提交推送。
+
+
+source30 于 07:31 UTC 结束，driver=1；无 CUDA 构建、相关测试、隔离 binding 和跨构建比较也已通过，整组唯一失败仍为前述 mixed initcheck。89 份小型证据归档至 checkpoint30-evidence，压缩 124781 B，归档及成员哈希核验通过；该失败版本不进入后续验收。
+
+修复版 source31 在 07:37 UTC 已完成 Release/OFF 的既定组件、主回归、隔离 binding 与全部 mixed/fallback CUDA 检查，均返回 0；完整 OFF initcheck 通过。ON/无 CUDA 矩阵仍在运行，不能据此标记整组通过。随后已在独立容器启动实际查询 API 剖析及 CPU ASan/UBSan，均核验共用 512 GB、swap=0；其结果尚待收集，百万门采样未开始。
+
+
+### G 修复回归与提交检查点（2026-10-18）
+
+07:59 UTC 核对修复版 source31 已结束，driver=0、verdict passed。独立 Release OFF/ON/无 CUDA 的既定组件、主回归、隔离 binding 和 OFF/ON 结果比较全部通过；OFF mixed 的 memcheck/initcheck/racecheck/synccheck 及 fallback 的 memcheck/initcheck 均通过。待提交源码与 source31 的文件哈希一致。证据位于 /home/shigure/code/stage14.6-20261016-implementation/commitpush-source31-observation.json 和 batch31-verdict.json；此前失败记录保留。
+
+实际查询剖析首次被脚本过时的 4096 条请求上限中止，独立取证确认 130 个重叠深链根实际展开为 8515 条合法请求。仅去掉脚本上限后的独立运行又遇到 cudaGetDeviceCount: initialization error，driver=1，尚无剖析通过结论。CPU ASan/UBSan 仍在构建。按用户要求提交并推送这三处修复、进度记录及子模块指针；Stage 14.6 整体验收、物理矩阵和百万门 1 次预热/3 次采样仍未完成。
