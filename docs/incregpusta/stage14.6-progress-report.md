@@ -1,6 +1,6 @@
 # Stage 14.6 实施记录
 
-日期：2026-10-17。基线为 ECC 8f427ef、ecc-tools 79e3106df。状态：实施中。首批已提交推送（ECC d6b7ee4、ecc-tools 1d13fe226）；第二批回传与等待计量已提交推送（ECC a163804、ecc-tools 8da1527fc）。第三批 native 基线绑定及对应文档已提交推送（ECC 4f409c3、ecc-tools b14f47ede）；本次 checkpoint 包含后续加载器、测量入口和生产模式迁移，不代表阶段完成。
+日期：2026-10-18。基线为 ECC 8f427ef、ecc-tools 79e3106df。状态：实施中。首批已提交推送（ECC d6b7ee4、ecc-tools 1d13fe226）；第二批回传与等待计量已提交推送（ECC a163804、ecc-tools 8da1527fc）。第三批 native 基线绑定及对应文档已提交推送（ECC 4f409c3、ecc-tools b14f47ede）；本次 checkpoint 包含后续加载器、测量入口和生产模式迁移，不代表阶段完成。
 
 ## 首批改动
 
@@ -286,3 +286,23 @@ source25 已结束，driver=1：OFF/ON 各两项 CUDA session 测试失败，原
 包含上述修复、链准备及字段解码提取的 source26 已冻结，归档 SHA256 为 55e8000f5d06c3e705127f877e305abe838780a21e5a0000dcc39386230525a2。05:13 UTC 在 GPU 2 的 stage146-batch26 会话核验容器及共用 512 GB、swap=0 限制；独立 OFF/ON/无 CUDA 回归正在运行，本检查点不宣称其通过。源码身份与本次提交前工作区一致。
 
 本次按用户要求提交推送开发检查点。Stage 14.6 整体验收、生产报告接入及百万门 1 次预热/3 次采样仍未完成。
+
+
+### G 生产报告接线与 source27 验证
+
+生产 CUDA 报告入口已接入端点、CRPR 时钟及选中路径的批量准备；reader 只解码已准备值，沿用原报告排序与选择。在 source27 冻结时，公开全 N AT/RAT/slack 消费者仍触发完整物化；后续标量迁移记录见下节，G 尚未验收。
+
+独立审查修复了三处问题：parallel ordinal 跨 child 编号导致 native rank 错配；完整结果缓存中的 missing-tag 默认对象污染后续查询；reader 对 native resolver 的循环构建依赖。分别改为受影响邻接内按实际 child 配对、每个准备边界清除解码缓存、把原只读 resolver View 移到现有 contract 目标。补充完整/稀疏并行弧与重复查询行为测试，两份静态复核通过，运行待验。
+
+source26 最终 driver=1：OFF/ON 编译成功，各两项 session 测试失败于报告链夹具没有 tagged path seed，却要求完整路径闭包；仅该组件夹具补充实际路径种子，保留独立 CPU view 计算对照，不改变生产输入校验。CUDA 后续主回归与 sanitizer 未执行；无 CUDA 的既定构建、相关回归和隔离 binding 通过。27 份小型证据已取回 checkpoint26-evidence，压缩 6560 B，归档和成员哈希核验通过。
+
+source27 冻结 156 个变更文件、72 个删除，归档 SHA256 为 0cc745b3dd00814f2d07bb8a3681e62d1b2d52dafaffac8322a07a6ae8884861。首个启动脚本误改日期路径，未启动构建；失败脚本保留，v2 使用同一源码快照。05:46 UTC 已确认 GPU 1、tmux stage146-batch27-v2、固定镜像及实际共同 512 GB/swap=0 限制，OFF 配置成功并开始构建。独立 OFF/ON/无 CUDA 矩阵追加报告与 scatter 回归，尚无通过结论。此后差异未提交或推送，百万门 1/3 测量仍未执行。
+
+
+### G 全节点标量读取提交检查点
+
+全 N AT/RAT/slack 改为独立标量读取，物理查询、benchmark consumer 及 trace replayer 均已迁移；报告继续按实际需求准备节点细节和路径。查询复用同 generation 已有字段，完整查询只补缺项，保留 pending/poison 拒绝和提交失效。共用一份设备投影 scratch，不增加独立设备容量池。
+
+新增回归覆盖不同查询顺序的真实回传字节、空图、重复读取、事务放弃和提交失效，并在 ON 枚举实际 host/CUDA 分配失败及重试。独立静态审查发现部分报告缓存后读取标量应复用设备容量、零 cudaMalloc，已修复测试的错误正计数断言；两份审查无剩余静态阻塞。部分缓存补缺仍有暂存及 host 复制，完整结果后再请求标量会增加约 24N bytes host 缓存，不宣称零复制。
+
+05:59 UTC 只读核对 source27 仍在运行，OFF 配置成功、构建未结束；该快照不含本组标量改动，不能作为其验证证据。本次两仓库差异检查通过，新增标量代码及测试尚未编译运行。按用户要求提交并推送开发检查点，保留已有失败记录；完整 Stage 14.6、剖析及百万门 1 次预热/3 次采样尚未完成。
